@@ -3,6 +3,13 @@ import { InsertUser, User as SelectUser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "wouter";
 
+// Add the refreshAuthState to the Window interface
+declare global {
+  interface Window {
+    refreshAuthState?: () => Promise<SelectUser | null>;
+  }
+}
+
 // Define the shape of our auth context
 type AuthContextType = {
   user: SelectUser | null;
@@ -32,31 +39,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [_, setLocation] = useLocation();
 
   // Check if user is already logged in
-  useEffect(() => {
-    const checkAuthStatus = async () => {
-      try {
-        console.log('Checking auth status...');
-        const response = await fetch('/api/user', {
-          credentials: 'include'
-        });
-        
-        console.log('Auth status response:', response.status);
-        
-        if (response.ok) {
-          const userData = await response.json();
-          console.log('User is authenticated:', userData);
-          setUser(userData);
-        } else {
-          console.log('User is not authenticated');
-        }
-      } catch (err) {
-        console.error('Error checking auth status:', err);
-      } finally {
-        setIsLoading(false);
+  const checkAuthStatus = async () => {
+    try {
+      console.log('Checking auth status...');
+      setIsLoading(true);
+      const response = await fetch('/api/user', {
+        credentials: 'include'
+      });
+      
+      console.log('Auth status response:', response.status);
+      
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('User is authenticated:', userData);
+        setUser(userData);
+        return userData;
+      } else {
+        console.log('User is not authenticated');
+        setUser(null);
+        return null;
       }
-    };
+    } catch (err) {
+      console.error('Error checking auth status:', err);
+      setUser(null);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
+  // Initial auth check on mount
+  useEffect(() => {
     checkAuthStatus();
+  }, []);
+  
+  // Expose the checkAuthStatus function for manual refreshes
+  useEffect(() => {
+    // Define a global function to refresh auth state
+    window.refreshAuthState = checkAuthStatus;
+    
+    return () => {
+      // Clean up when component unmounts
+      delete window.refreshAuthState;
+    };
   }, []);
 
   // Login function

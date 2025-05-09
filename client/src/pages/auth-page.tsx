@@ -66,40 +66,12 @@ export default function AuthPage() {
     console.log('Login form submitted with data:', data);
     setIsSubmitting(true);
     try {
-      console.log('Making direct login API request with:', data);
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include' // Important for cookies
-      });
-      
-      console.log('Login API response status:', response.status);
-      
-      if (response.ok) {
-        const userData = await response.json();
-        console.log('Login successful, user data:', userData);
-        // Update auth state
-        console.log('Redirecting to dashboard...');
-        window.location.href = '/dashboard';
-      } else {
-        const errorText = await response.text();
-        console.error('Login failed:', errorText);
-        toast({
-          title: "Login failed",
-          description: "Invalid username or password",
-          variant: "destructive",
-        });
-      }
+      console.log('Using auth hook for login');
+      await login(data.username, data.password);
+      // The login function in useAuth will handle redirects and toasts
     } catch (error) {
       console.error('Error in login submission:', error);
-      toast({
-        title: "Login error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
+      // Error handling is done in the useAuth hook
     } finally {
       setIsSubmitting(false);
     }
@@ -109,45 +81,16 @@ export default function AuthPage() {
     console.log('Register form submitted with data:', data);
     setIsSubmitting(true);
     try {
-      console.log('Making direct register API request');
+      console.log('Using auth hook for registration');
+      // Remove confirmPassword as it's not needed in the API call
       const { confirmPassword, ...registerData } = data;
       
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(registerData),
-        credentials: 'include' // Important for cookies
-      });
-      
-      console.log('Register API response status:', response.status);
-      
-      if (response.ok) {
-        const userData = await response.json();
-        console.log('Registration successful, user data:', userData);
-        console.log('Redirecting to dashboard after registration...');
-        window.location.href = '/dashboard';
-        toast({
-          title: "Registration successful",
-          description: "Your account has been created",
-        });
-      } else {
-        const errorText = await response.text();
-        console.error('Registration failed:', errorText);
-        toast({
-          title: "Registration failed",
-          description: errorText || "Username may already exist",
-          variant: "destructive",
-        });
-      }
+      // Use the register function from the useAuth hook
+      await register(registerData);
+      // The register function in useAuth will handle redirects and toasts
     } catch (error) {
       console.error('Error in registration submission:', error);
-      toast({
-        title: "Registration error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
+      // Error handling is already done in the useAuth hook
     } finally {
       setIsSubmitting(false);
     }
