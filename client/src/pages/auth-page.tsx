@@ -19,7 +19,6 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { queryClient } from "@/lib/queryClient";
 
 const loginSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -67,40 +66,12 @@ export default function AuthPage() {
     console.log('Login form submitted with data:', data);
     setIsSubmitting(true);
     try {
-      console.log('Making direct login API request with:', data);
-      const response = await fetch('/api/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(data),
-        credentials: 'include' // Important for cookies
-      });
-      
-      console.log('Login API response status:', response.status);
-      
-      if (response.ok) {
-        const userData = await response.json();
-        console.log('Login successful, user data:', userData);
-        // Manually update React Query cache
-        queryClient.setQueryData(['/api/user'], userData);
-        setLocation('/dashboard');
-      } else {
-        const errorText = await response.text();
-        console.error('Login failed:', errorText);
-        toast({
-          title: "Login failed",
-          description: "Invalid username or password",
-          variant: "destructive",
-        });
-      }
+      console.log('Using auth hook login function');
+      await login(data.username, data.password);
+      // The useAuth hook will handle redirecting to dashboard
     } catch (error) {
       console.error('Error in login submission:', error);
-      toast({
-        title: "Login error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
+      // Errors are handled by useAuth hook
     } finally {
       setIsSubmitting(false);
     }
@@ -110,46 +81,13 @@ export default function AuthPage() {
     console.log('Register form submitted with data:', data);
     setIsSubmitting(true);
     try {
-      console.log('Making direct register API request');
+      console.log('Using auth hook register function');
       const { confirmPassword, ...registerData } = data;
-      
-      const response = await fetch('/api/register', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(registerData),
-        credentials: 'include' // Important for cookies
-      });
-      
-      console.log('Register API response status:', response.status);
-      
-      if (response.ok) {
-        const userData = await response.json();
-        console.log('Registration successful, user data:', userData);
-        // Manually update React Query cache
-        queryClient.setQueryData(['/api/user'], userData);
-        setLocation('/dashboard');
-        toast({
-          title: "Registration successful",
-          description: "Your account has been created",
-        });
-      } else {
-        const errorText = await response.text();
-        console.error('Registration failed:', errorText);
-        toast({
-          title: "Registration failed",
-          description: errorText || "Username may already exist",
-          variant: "destructive",
-        });
-      }
+      await register(registerData);
+      // The useAuth hook will handle redirecting to dashboard
     } catch (error) {
       console.error('Error in registration submission:', error);
-      toast({
-        title: "Registration error",
-        description: "An unexpected error occurred",
-        variant: "destructive",
-      });
+      // Errors are handled by useAuth hook
     } finally {
       setIsSubmitting(false);
     }
