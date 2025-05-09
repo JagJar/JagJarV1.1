@@ -7,7 +7,15 @@ import { Menu, X } from "lucide-react";
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [location] = useLocation();
-  const { user } = useAuth();
+  
+  // Safe auth access with try/catch to handle when AuthProvider is not available
+  let user = null;
+  try {
+    const auth = useAuth();
+    user = auth.user;
+  } catch (error) {
+    // AuthProvider not available, continue with user as null
+  }
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -27,35 +35,35 @@ export default function Header() {
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center space-x-2">
             <Link href="/">
-              <a className="flex items-center space-x-2">
+              <div className="flex items-center space-x-2 cursor-pointer">
                 <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center">
                   <span className="text-white font-bold text-lg">J</span>
                 </div>
                 <span className="text-xl font-bold text-neutral-800">JagJar</span>
-              </a>
+              </div>
             </Link>
           </div>
           
           <nav className="hidden md:flex items-center space-x-8">
             <Link href="/features">
-              <a className={`font-medium ${isActive("/features") ? "text-primary-500" : "hover:text-primary-500"} transition-colors`}>
+              <div className={`font-medium ${isActive("/features") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}>
                 Features
-              </a>
+              </div>
             </Link>
             <Link href="/pricing">
-              <a className={`font-medium ${isActive("/pricing") ? "text-primary-500" : "hover:text-primary-500"} transition-colors`}>
+              <div className={`font-medium ${isActive("/pricing") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}>
                 Pricing
-              </a>
+              </div>
             </Link>
             <Link href="/developers">
-              <a className={`font-medium ${isActive("/developers") ? "text-primary-500" : "hover:text-primary-500"} transition-colors`}>
+              <div className={`font-medium ${isActive("/developers") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}>
                 Developers
-              </a>
+              </div>
             </Link>
             <Link href="/extension">
-              <a className={`font-medium ${isActive("/extension") ? "text-primary-500" : "hover:text-primary-500"} transition-colors`}>
+              <div className={`font-medium ${isActive("/extension") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}>
                 Extension
-              </a>
+              </div>
             </Link>
           </nav>
           
@@ -67,9 +75,9 @@ export default function Header() {
             ) : (
               <>
                 <Link href="/auth">
-                  <a className="hidden sm:block font-medium hover:text-primary-500 transition-colors">
+                  <div className="hidden sm:block font-medium hover:text-primary-500 transition-colors cursor-pointer">
                     Login
-                  </a>
+                  </div>
                 </Link>
                 <Link href="/auth">
                   <Button>Sign Up</Button>
@@ -94,45 +102,45 @@ export default function Header() {
         {isMenuOpen && (
           <div className="md:hidden pt-2 pb-4 space-y-1 border-t border-neutral-200">
             <Link href="/features">
-              <a 
-                className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500"
+              <div 
+                className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500 cursor-pointer"
                 onClick={closeMenu}
               >
                 Features
-              </a>
+              </div>
             </Link>
             <Link href="/pricing">
-              <a 
-                className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500"
+              <div 
+                className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500 cursor-pointer"
                 onClick={closeMenu}
               >
                 Pricing
-              </a>
+              </div>
             </Link>
             <Link href="/developers">
-              <a 
-                className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500"
+              <div 
+                className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500 cursor-pointer"
                 onClick={closeMenu}
               >
                 Developers
-              </a>
+              </div>
             </Link>
             <Link href="/extension">
-              <a 
-                className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500"
+              <div 
+                className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500 cursor-pointer"
                 onClick={closeMenu}
               >
                 Extension
-              </a>
+              </div>
             </Link>
             {!user && (
               <Link href="/auth">
-                <a 
-                  className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500"
+                <div 
+                  className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500 cursor-pointer"
                   onClick={closeMenu}
                 >
                   Login
-                </a>
+                </div>
               </Link>
             )}
           </div>
