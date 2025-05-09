@@ -2,13 +2,14 @@ import { db } from "./db";
 import { users, developers, apiKeys, websites, timeTracking, revenue, plans } from "@shared/schema";
 import { hashPassword } from "./auth";
 import { generateApiKeyString } from "./utils";
+import { sql } from "drizzle-orm";
 
 async function seedDatabase() {
   console.log("Seeding database...");
   
   try {
     // Check if users table already has data
-    const existingUsers = await db.select({ count: db.fn.count() }).from(users);
+    const existingUsers = await db.select({ count: sql`count(*)` }).from(users);
     
     if (parseInt(existingUsers[0].count as string) > 0) {
       console.log("Database already has data. Skipping seed.");

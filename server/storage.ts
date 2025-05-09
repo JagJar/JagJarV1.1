@@ -47,7 +47,7 @@ export interface IStorage {
   getRevenueByDeveloperId(developerId: number): Promise<Revenue[]>;
   
   // Session store
-  sessionStore: any;
+  sessionStore: session.Store;
 }
 
 export class DatabaseStorage implements IStorage {

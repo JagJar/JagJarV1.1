@@ -16,6 +16,8 @@ import Analytics from "@/pages/dashboard/analytics";
 import Integration from "@/pages/dashboard/integration";
 import Earnings from "@/pages/dashboard/earnings";
 import Settings from "@/pages/dashboard/settings";
+import { AuthProvider } from "./hooks/use-auth";
+import { ThemeProvider } from "next-themes";
 
 function Router() {
   return (
@@ -40,9 +42,16 @@ function Router() {
 
 function App() {
   return (
-    <TooltipProvider>
-      <Router />
-    </TooltipProvider>
+    <QueryClientProvider client={queryClient}>
+      <ThemeProvider attribute="class" defaultTheme="light">
+        <AuthProvider>
+          <TooltipProvider>
+            <Router />
+            <Toaster />
+          </TooltipProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </QueryClientProvider>
   );
 }
 

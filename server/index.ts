@@ -36,7 +36,12 @@ app.use((req, res, next) => {
   next();
 });
 
+import { seedDatabase } from "./seed";
+
 (async () => {
+  // First, seed the database
+  await seedDatabase();
+  
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
