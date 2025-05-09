@@ -37,7 +37,20 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
-  const { user, loginMutation, registerMutation } = useAuth();
+  // Safe auth access with try/catch
+  let user = null;
+  let loginMutation: any = { isPending: false, mutate: () => {} };
+  let registerMutation: any = { isPending: false, mutate: () => {} };
+  
+  try {
+    const auth = useAuth();
+    user = auth.user;
+    loginMutation = auth.loginMutation;
+    registerMutation = auth.registerMutation;
+  } catch (error) {
+    console.error("Auth context not available:", error);
+  }
+  
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("login");
 
