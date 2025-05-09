@@ -61,9 +61,43 @@ export default function AuthPage() {
   });
 
   const onLoginSubmit = async (data: LoginFormValues) => {
+    console.log('Login form submitted with data:', data);
     setIsSubmitting(true);
     try {
-      await login(data.username, data.password);
+      console.log('Making direct login API request with:', data);
+      const response = await fetch('/api/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+        credentials: 'include' // Important for cookies
+      });
+      
+      console.log('Login API response status:', response.status);
+      
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('Login successful, user data:', userData);
+        // Manually update React Query cache
+        queryClient.setQueryData(['/api/user'], userData);
+        setLocation('/');
+      } else {
+        const errorText = await response.text();
+        console.error('Login failed:', errorText);
+        toast({
+          title: "Login failed",
+          description: "Invalid username or password",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error in login submission:', error);
+      toast({
+        title: "Login error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -93,12 +127,12 @@ export default function AuthPage() {
           <CardHeader className="space-y-1">
             <div className="flex items-center justify-center mb-6">
               <Link href="/">
-                <a className="flex items-center space-x-2">
+                <div className="flex items-center space-x-2 cursor-pointer">
                   <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center">
                     <span className="text-white font-bold text-lg">J</span>
                   </div>
                   <span className="text-xl font-bold text-neutral-800">JagJar</span>
-                </a>
+                </div>
               </Link>
             </div>
             <CardTitle className="text-2xl text-center">Welcome to JagJar</CardTitle>
@@ -115,7 +149,14 @@ export default function AuthPage() {
               
               <TabsContent value="login">
                 <Form {...loginForm}>
-                  <form onSubmit={loginForm.handleSubmit(onLoginSubmit)} className="space-y-4">
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      console.log('Form submitted directly');
+                      loginForm.handleSubmit(onLoginSubmit)(e);
+                    }} 
+                    className="space-y-4"
+                  >
                     <FormField
                       control={loginForm.control}
                       name="username"
@@ -146,6 +187,11 @@ export default function AuthPage() {
                       type="submit" 
                       className="w-full" 
                       disabled={isSubmitting}
+                      onClick={() => {
+                        console.log('Button clicked directly');
+                        const formData = loginForm.getValues();
+                        console.log('Form values:', formData);
+                      }}
                     >
                       {isSubmitting ? (
                         <>
@@ -162,7 +208,14 @@ export default function AuthPage() {
               
               <TabsContent value="register">
                 <Form {...registerForm}>
-                  <form onSubmit={registerForm.handleSubmit(onRegisterSubmit)} className="space-y-4">
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      console.log('Register form submitted directly');
+                      registerForm.handleSubmit(onRegisterSubmit)(e);
+                    }} 
+                    className="space-y-4"
+                  >
                     <FormField
                       control={registerForm.control}
                       name="username"
@@ -219,6 +272,11 @@ export default function AuthPage() {
                       type="submit" 
                       className="w-full" 
                       disabled={isSubmitting}
+                      onClick={() => {
+                        console.log('Register button clicked directly');
+                        const formData = registerForm.getValues();
+                        console.log('Register form values:', formData);
+                      }}
                     >
                       {isSubmitting ? (
                         <>
@@ -238,11 +296,11 @@ export default function AuthPage() {
             <div className="text-sm text-center text-muted-foreground">
               By continuing, you agree to our 
               <Link href="/terms">
-                <a className="underline ml-1 mr-1">Terms of Service</a>
+                <span className="underline ml-1 mr-1 cursor-pointer">Terms of Service</span>
               </Link>
               and
               <Link href="/privacy">
-                <a className="underline ml-1">Privacy Policy</a>
+                <span className="underline ml-1 cursor-pointer">Privacy Policy</span>
               </Link>
             </div>
           </CardFooter>
