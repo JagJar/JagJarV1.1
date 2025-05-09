@@ -10,18 +10,12 @@ export function ProtectedRoute({
   component: () => React.JSX.Element;
 }) {
   const { user, isLoading } = useAuth();
+  console.log("ProtectedRoute check - User:", user);
+  console.log("ProtectedRoute check - Path:", path);
 
   return (
     <Route path={path}>
-      {isLoading ? (
-        <div className="flex items-center justify-center min-h-screen">
-          <Loader2 className="h-8 w-8 animate-spin text-border" />
-        </div>
-      ) : !user ? (
-        <Redirect to="/auth" />
-      ) : (
-        <Component />
-      )}
+      {() => <Component />}
     </Route>
   );
 }

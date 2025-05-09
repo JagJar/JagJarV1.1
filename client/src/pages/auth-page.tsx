@@ -82,7 +82,8 @@ export default function AuthPage() {
         const userData = await response.json();
         console.log('Login successful, user data:', userData);
         // Update auth state
-        setLocation('/dashboard');
+        console.log('Redirecting to dashboard...');
+        window.location.href = '/dashboard';
       } else {
         const errorText = await response.text();
         console.error('Login failed:', errorText);
@@ -125,7 +126,8 @@ export default function AuthPage() {
       if (response.ok) {
         const userData = await response.json();
         console.log('Registration successful, user data:', userData);
-        setLocation('/dashboard');
+        console.log('Redirecting to dashboard after registration...');
+        window.location.href = '/dashboard';
         toast({
           title: "Registration successful",
           description: "Your account has been created",
