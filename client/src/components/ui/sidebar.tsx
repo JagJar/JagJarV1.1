@@ -49,7 +49,7 @@ export function SidebarNav({ className, children, ...props }: SidebarNavProps) {
   );
 }
 
-interface SidebarNavItemProps extends React.HTMLAttributes<HTMLAnchorElement> {
+interface SidebarNavItemProps extends React.HTMLAttributes<HTMLDivElement> {
   href: string;
   icon?: LucideIcon;
   active?: boolean;
@@ -67,9 +67,9 @@ export function SidebarNavItem({
 
   return (
     <Link href={href}>
-      <a
+      <div
         className={cn(
-          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
           isActive
             ? "bg-sidebar-accent text-sidebar-accent-foreground"
             : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
@@ -79,7 +79,7 @@ export function SidebarNavItem({
       >
         {Icon && <Icon className="h-4 w-4" />}
         {children}
-      </a>
+      </div>
     </Link>
   );
 }

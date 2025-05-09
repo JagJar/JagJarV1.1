@@ -10,10 +10,14 @@ interface DashboardLayoutProps {
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { user, logoutMutation } = useAuth();
+  const { user, logout } = useAuth();
 
-  const handleLogout = () => {
-    logoutMutation.mutate();
+  const handleLogout = async () => {
+    try {
+      await logout();
+    } catch (error) {
+      console.error('Logout error:', error);
+    }
   };
 
   return (
@@ -21,12 +25,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
       <Sidebar className="w-64 hidden md:flex">
         <SidebarHeader>
           <Link href="/">
-            <a className="flex items-center gap-2">
+            <div className="flex items-center gap-2 cursor-pointer">
               <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center">
                 <span className="text-white font-bold text-lg">J</span>
               </div>
               <span className="font-bold text-xl">JagJar</span>
-            </a>
+            </div>
           </Link>
         </SidebarHeader>
         <SidebarNav>
