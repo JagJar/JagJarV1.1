@@ -7,9 +7,12 @@ import {
   revenue, type Revenue, type InsertRevenue
 } from "@shared/schema";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import { db } from "./db";
+import { eq } from "drizzle-orm";
+import connectPg from "connect-pg-simple";
+import { pool } from "./db";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPg(session);
 
 export interface IStorage {
   // User operations
@@ -44,281 +47,183 @@ export interface IStorage {
   getRevenueByDeveloperId(developerId: number): Promise<Revenue[]>;
   
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: any;
 }
 
-export class MemStorage implements IStorage {
-  private usersMap: Map<number, User>;
-  private developersMap: Map<number, Developer>;
-  private apiKeysMap: Map<number, ApiKey>;
-  private websitesMap: Map<number, Website>;
-  private timeTrackingMap: Map<number, TimeTracking>;
-  private revenueMap: Map<number, Revenue>;
-  
-  userIdCounter: number;
-  developerIdCounter: number;
-  apiKeyIdCounter: number;
-  websiteIdCounter: number;
-  timeTrackingIdCounter: number;
-  revenueIdCounter: number;
-  
-  sessionStore: session.SessionStore;
+export class DatabaseStorage implements IStorage {
+  sessionStore: any;
 
   constructor() {
-    this.usersMap = new Map();
-    this.developersMap = new Map();
-    this.apiKeysMap = new Map();
-    this.websitesMap = new Map();
-    this.timeTrackingMap = new Map();
-    this.revenueMap = new Map();
-    
-    this.userIdCounter = 1;
-    this.developerIdCounter = 1;
-    this.apiKeyIdCounter = 1;
-    this.websiteIdCounter = 1;
-    this.timeTrackingIdCounter = 1;
-    this.revenueIdCounter = 1;
-    
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000, // 24 hours
+    this.sessionStore = new PostgresSessionStore({ 
+      pool, 
+      createTableIfMissing: true,
+      tableName: 'sessions' 
     });
-    
-    // Initialize with sample data
-    this.initializeSampleData();
   }
   
   // User operations
   async getUser(id: number): Promise<User | undefined> {
-    return this.usersMap.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.usersMap.values()).find(
-      (user) => user.username.toLowerCase() === username.toLowerCase()
-    );
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
   
   async getUserByEmail(email: string): Promise<User | undefined> {
-    return Array.from(this.usersMap.values()).find(
-      (user) => user.email.toLowerCase() === email.toLowerCase()
-    );
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.userIdCounter++;
-    const now = new Date();
-    const user: User = { 
-      ...insertUser, 
-      id, 
-      isSubscribed: false,
-      subscriptionType: "free",
-      createdAt: now
-    };
-    this.usersMap.set(id, user);
+    const [user] = await db
+      .insert(users)
+      .values({
+        ...insertUser,
+        isSubscribed: false,
+        subscriptionType: "free"
+      })
+      .returning();
     return user;
   }
   
   async updateUser(id: number, userData: Partial<User>): Promise<User | undefined> {
-    const existingUser = this.usersMap.get(id);
-    if (!existingUser) return undefined;
-    
-    const updatedUser = { ...existingUser, ...userData };
-    this.usersMap.set(id, updatedUser);
-    return updatedUser;
+    const [user] = await db
+      .update(users)
+      .set(userData)
+      .where(eq(users.id, id))
+      .returning();
+    return user;
   }
 
   // Developer operations
   async createDeveloper(insertDeveloper: InsertDeveloper): Promise<Developer> {
-    const id = this.developerIdCounter++;
-    const now = new Date();
-    const developer: Developer = { ...insertDeveloper, id, createdAt: now };
-    this.developersMap.set(id, developer);
+    const [developer] = await db
+      .insert(developers)
+      .values({
+        ...insertDeveloper,
+        companyName: insertDeveloper.companyName || null,
+        website: insertDeveloper.website || null
+      })
+      .returning();
     return developer;
   }
   
   async getDeveloperByUserId(userId: number): Promise<Developer | undefined> {
-    return Array.from(this.developersMap.values()).find(
-      (developer) => developer.userId === userId
-    );
+    const [developer] = await db
+      .select()
+      .from(developers)
+      .where(eq(developers.userId, userId));
+    return developer;
   }
 
   // API Key operations
   async createApiKey(apiKey: InsertApiKey & { key: string }): Promise<ApiKey> {
-    const id = this.apiKeyIdCounter++;
-    const now = new Date();
-    const newApiKey: ApiKey = { 
-      ...apiKey, 
-      id, 
-      active: true, 
-      createdAt: now 
-    };
-    this.apiKeysMap.set(id, newApiKey);
+    const [newApiKey] = await db
+      .insert(apiKeys)
+      .values({
+        developerId: apiKey.developerId,
+        name: apiKey.name,
+        key: apiKey.key,
+        active: true
+      })
+      .returning();
     return newApiKey;
   }
   
   async getApiKey(id: number): Promise<ApiKey | undefined> {
-    return this.apiKeysMap.get(id);
+    const [apiKey] = await db
+      .select()
+      .from(apiKeys)
+      .where(eq(apiKeys.id, id));
+    return apiKey;
   }
   
   async getApiKeysByDeveloperId(developerId: number): Promise<ApiKey[]> {
-    return Array.from(this.apiKeysMap.values()).filter(
-      (apiKey) => apiKey.developerId === developerId
-    );
+    return db
+      .select()
+      .from(apiKeys)
+      .where(eq(apiKeys.developerId, developerId));
   }
   
   async getApiKeyByKey(key: string): Promise<ApiKey | undefined> {
-    return Array.from(this.apiKeysMap.values()).find(
-      (apiKey) => apiKey.key === key
-    );
+    const [apiKey] = await db
+      .select()
+      .from(apiKeys)
+      .where(eq(apiKeys.key, key));
+    return apiKey;
   }
   
   async deleteApiKey(id: number): Promise<void> {
-    this.apiKeysMap.delete(id);
-    
-    // Also delete related websites
-    const websitesToDelete = Array.from(this.websitesMap.values())
-      .filter(website => website.apiKeyId === id)
-      .map(website => website.id);
-    
-    websitesToDelete.forEach(websiteId => {
-      this.websitesMap.delete(websiteId);
-    });
+    // First, delete related websites
+    await db
+      .delete(websites)
+      .where(eq(websites.apiKeyId, id));
+      
+    // Then delete the API key
+    await db
+      .delete(apiKeys)
+      .where(eq(apiKeys.id, id));
   }
 
   // Website operations
   async createWebsite(insertWebsite: InsertWebsite): Promise<Website> {
-    const id = this.websiteIdCounter++;
-    const now = new Date();
-    const website: Website = { ...insertWebsite, id, createdAt: now };
-    this.websitesMap.set(id, website);
+    const [website] = await db
+      .insert(websites)
+      .values(insertWebsite)
+      .returning();
     return website;
   }
   
   async getWebsitesByApiKeyId(apiKeyId: number): Promise<Website[]> {
-    return Array.from(this.websitesMap.values()).filter(
-      (website) => website.apiKeyId === apiKeyId
-    );
+    return db
+      .select()
+      .from(websites)
+      .where(eq(websites.apiKeyId, apiKeyId));
   }
 
   // Time Tracking operations
-  async createTimeTracking(insertTimeTracking: InsertTimeTracking): Promise<TimeTracking> {
-    const id = this.timeTrackingIdCounter++;
-    const now = new Date();
-    const timeTracking: TimeTracking = { ...insertTimeTracking, id, date: now };
-    this.timeTrackingMap.set(id, timeTracking);
-    return timeTracking;
+  async createTimeTracking(insertTimeTrackingData: InsertTimeTracking): Promise<TimeTracking> {
+    const [trackingEntry] = await db
+      .insert(timeTracking)
+      .values(insertTimeTrackingData)
+      .returning();
+    return trackingEntry;
   }
   
   async getTimeTrackingByUserId(userId: number): Promise<TimeTracking[]> {
-    return Array.from(this.timeTrackingMap.values()).filter(
-      (timeTracking) => timeTracking.userId === userId
-    );
+    return db
+      .select()
+      .from(timeTracking)
+      .where(eq(timeTracking.userId, userId));
   }
   
   async getTimeTrackingByWebsiteId(websiteId: number): Promise<TimeTracking[]> {
-    return Array.from(this.timeTrackingMap.values()).filter(
-      (timeTracking) => timeTracking.websiteId === websiteId
-    );
+    return db
+      .select()
+      .from(timeTracking)
+      .where(eq(timeTracking.websiteId, websiteId));
   }
 
   // Revenue operations
   async createRevenue(insertRevenue: InsertRevenue): Promise<Revenue> {
-    const id = this.revenueIdCounter++;
-    const now = new Date();
-    const revenue: Revenue = { ...insertRevenue, id, calculatedAt: now };
-    this.revenueMap.set(id, revenue);
-    return revenue;
+    const [revenueEntry] = await db
+      .insert(revenue)
+      .values(insertRevenue)
+      .returning();
+    return revenueEntry;
   }
   
   async getRevenueByDeveloperId(developerId: number): Promise<Revenue[]> {
-    return Array.from(this.revenueMap.values()).filter(
-      (revenue) => revenue.developerId === developerId
-    ).sort((a, b) => {
-      // Sort by month (newest first)
-      return b.month.localeCompare(a.month);
-    });
-  }
-  
-  // Initialize with sample data
-  private async initializeSampleData() {
-    // Create sample users
-    const user1 = await this.createUser({
-      username: "developer",
-      email: "developer@example.com",
-      password: "$2b$10$XLBRcKPT9L8K1v0iccUhVu9r2z5N29MSE.UNxzMxCkvqtKxsxeE/K", // password: "password"
-    });
-    
-    const user2 = await this.createUser({
-      username: "premium",
-      email: "premium@example.com",
-      password: "$2b$10$XLBRcKPT9L8K1v0iccUhVu9r2z5N29MSE.UNxzMxCkvqtKxsxeE/K", // password: "password"
-    });
-    this.updateUser(user2.id, { isSubscribed: true, subscriptionType: "premium" });
-    
-    // Create sample developer
-    const developer1 = await this.createDeveloper({
-      userId: user1.id,
-      companyName: "Example Dev Co",
-      website: "https://example.com"
-    });
-    
-    // Create sample API keys
-    const apiKey1 = await this.createApiKey({
-      developerId: developer1.id,
-      name: "Example Web App",
-      key: "jag_k1_3f7d9a8b2c1e5f4d6a8b9c7e5f3d1a2b4c6e8f7d9a8b2c1e5f4d6a",
-      active: true
-    });
-    
-    const apiKey2 = await this.createApiKey({
-      developerId: developer1.id,
-      name: "Another App",
-      key: "jag_k1_2a1b3c5d7e9f8a6b4c2d1e3f5a7b9c8e6d4f2a1b3c5d7e9f8a6b4c",
-      active: true
-    });
-    
-    // Create sample websites
-    const website1 = await this.createWebsite({
-      apiKeyId: apiKey1.id,
-      name: "Example Web App",
-      url: "https://example.com"
-    });
-    
-    const website2 = await this.createWebsite({
-      apiKeyId: apiKey2.id,
-      name: "Another App",
-      url: "https://another-example.com"
-    });
-    
-    // Create sample time tracking
-    await this.createTimeTracking({
-      userId: user2.id,
-      websiteId: website1.id,
-      duration: 1800 // 30 minutes
-    });
-    
-    await this.createTimeTracking({
-      userId: user2.id,
-      websiteId: website2.id,
-      duration: 3600 // 1 hour
-    });
-    
-    // Create sample revenue
-    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-    const previousMonth = new Date(new Date().setMonth(new Date().getMonth() - 1)).toISOString().slice(0, 7);
-    
-    await this.createRevenue({
-      developerId: developer1.id,
-      month: currentMonth,
-      amount: 125032 // $1,250.32
-    });
-    
-    await this.createRevenue({
-      developerId: developer1.id,
-      month: previousMonth,
-      amount: 108542 // $1,085.42
-    });
+    return db
+      .select()
+      .from(revenue)
+      .where(eq(revenue.developerId, developerId))
+      .orderBy(revenue.month);
   }
 }
 
-export const storage = new MemStorage();
+// We're now using the PostgreSQL database instead of in-memory storage
+export const storage = new DatabaseStorage();

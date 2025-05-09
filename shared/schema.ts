@@ -1,6 +1,7 @@
-import { pgTable, text, serial, integer, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, primaryKey } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
+import { relations } from "drizzle-orm";
 
 // User model
 export const users = pgTable("users", {
@@ -109,6 +110,58 @@ export const insertPlanSchema = createInsertSchema(plans).pick({
   timeLimit: true,
   description: true,
 });
+
+// Relations
+export const usersRelations = relations(users, ({ one, many }) => ({
+  developer: one(developers, {
+    fields: [users.id],
+    references: [developers.userId],
+  }),
+  timeTracking: many(timeTracking),
+}));
+
+export const developersRelations = relations(developers, ({ one, many }) => ({
+  user: one(users, {
+    fields: [developers.userId],
+    references: [users.id],
+  }),
+  apiKeys: many(apiKeys),
+  revenue: many(revenue),
+}));
+
+export const apiKeysRelations = relations(apiKeys, ({ one, many }) => ({
+  developer: one(developers, {
+    fields: [apiKeys.developerId],
+    references: [developers.id],
+  }),
+  websites: many(websites),
+}));
+
+export const websitesRelations = relations(websites, ({ one, many }) => ({
+  apiKey: one(apiKeys, {
+    fields: [websites.apiKeyId],
+    references: [apiKeys.id],
+  }),
+  timeTracking: many(timeTracking),
+}));
+
+export const timeTrackingRelations = relations(timeTracking, ({ one }) => ({
+  user: one(users, {
+    fields: [timeTracking.userId],
+    references: [users.id],
+  }),
+  website: one(websites, {
+    fields: [timeTracking.websiteId],
+    references: [websites.id],
+  }),
+}));
+
+export const revenueRelations = relations(revenue, ({ one }) => ({
+  developer: one(developers, {
+    fields: [revenue.developerId],
+    references: [developers.id],
+  }),
+}));
 
 // Types
 export type User = typeof users.$inferSelect;
