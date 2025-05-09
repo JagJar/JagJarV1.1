@@ -18,6 +18,8 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { queryClient } from "@/lib/queryClient";
 
 const loginSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -37,6 +39,7 @@ type LoginFormValues = z.infer<typeof loginSchema>;
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AuthPage() {
+  const { toast } = useToast();
   const { user, isLoading, login, register } = useAuth();
   const [_, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState("login");
@@ -104,10 +107,49 @@ export default function AuthPage() {
   };
 
   const onRegisterSubmit = async (data: RegisterFormValues) => {
+    console.log('Register form submitted with data:', data);
     setIsSubmitting(true);
     try {
+      console.log('Making direct register API request');
       const { confirmPassword, ...registerData } = data;
-      await register(registerData);
+      
+      const response = await fetch('/api/register', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(registerData),
+        credentials: 'include' // Important for cookies
+      });
+      
+      console.log('Register API response status:', response.status);
+      
+      if (response.ok) {
+        const userData = await response.json();
+        console.log('Registration successful, user data:', userData);
+        // Manually update React Query cache
+        queryClient.setQueryData(['/api/user'], userData);
+        setLocation('/');
+        toast({
+          title: "Registration successful",
+          description: "Your account has been created",
+        });
+      } else {
+        const errorText = await response.text();
+        console.error('Registration failed:', errorText);
+        toast({
+          title: "Registration failed",
+          description: errorText || "Username may already exist",
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Error in registration submission:', error);
+      toast({
+        title: "Registration error",
+        description: "An unexpected error occurred",
+        variant: "destructive",
+      });
     } finally {
       setIsSubmitting(false);
     }
@@ -150,11 +192,7 @@ export default function AuthPage() {
               <TabsContent value="login">
                 <Form {...loginForm}>
                   <form 
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      console.log('Form submitted directly');
-                      loginForm.handleSubmit(onLoginSubmit)(e);
-                    }} 
+                    onSubmit={loginForm.handleSubmit(onLoginSubmit)} 
                     className="space-y-4"
                   >
                     <FormField
@@ -187,11 +225,6 @@ export default function AuthPage() {
                       type="submit" 
                       className="w-full" 
                       disabled={isSubmitting}
-                      onClick={() => {
-                        console.log('Button clicked directly');
-                        const formData = loginForm.getValues();
-                        console.log('Form values:', formData);
-                      }}
                     >
                       {isSubmitting ? (
                         <>
@@ -209,11 +242,7 @@ export default function AuthPage() {
               <TabsContent value="register">
                 <Form {...registerForm}>
                   <form 
-                    onSubmit={(e) => {
-                      e.preventDefault();
-                      console.log('Register form submitted directly');
-                      registerForm.handleSubmit(onRegisterSubmit)(e);
-                    }} 
+                    onSubmit={registerForm.handleSubmit(onRegisterSubmit)} 
                     className="space-y-4"
                   >
                     <FormField
@@ -272,11 +301,6 @@ export default function AuthPage() {
                       type="submit" 
                       className="w-full" 
                       disabled={isSubmitting}
-                      onClick={() => {
-                        console.log('Register button clicked directly');
-                        const formData = registerForm.getValues();
-                        console.log('Register form values:', formData);
-                      }}
                     >
                       {isSubmitting ? (
                         <>
