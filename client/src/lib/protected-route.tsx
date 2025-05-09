@@ -9,17 +9,7 @@ export function ProtectedRoute({
   path: string;
   component: () => React.JSX.Element;
 }) {
-  // Safe auth access with try/catch
-  let user = null;
-  let isLoading = true;
-  
-  try {
-    const auth = useAuth();
-    user = auth.user;
-    isLoading = auth.isLoading;
-  } catch (error) {
-    console.error("Auth context not available in protected route:", error);
-  }
+  const { user, isLoading } = useAuth();
 
   return (
     <Route path={path}>
