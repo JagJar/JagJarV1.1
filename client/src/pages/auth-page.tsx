@@ -84,7 +84,7 @@ export default function AuthPage() {
         console.log('Login successful, user data:', userData);
         // Manually update React Query cache
         queryClient.setQueryData(['/api/user'], userData);
-        setLocation('/');
+        setLocation('/dashboard');
       } else {
         const errorText = await response.text();
         console.error('Login failed:', errorText);
@@ -129,7 +129,7 @@ export default function AuthPage() {
         console.log('Registration successful, user data:', userData);
         // Manually update React Query cache
         queryClient.setQueryData(['/api/user'], userData);
-        setLocation('/');
+        setLocation('/dashboard');
         toast({
           title: "Registration successful",
           description: "Your account has been created",
