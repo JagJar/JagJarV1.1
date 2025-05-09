@@ -119,7 +119,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "Welcome back to JagJar!",
       });
       
-      setLocation('/dashboard');
+      // Use window.location for more reliable redirect with a full page reload
+      console.log('Redirecting to dashboard...');
+      window.location.href = '/dashboard';
     } catch (err) {
       console.error('Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
@@ -141,6 +143,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
+      console.log('Attempting registration with data:', userData);
+      
       const response = await fetch('/api/register', {
         method: 'POST',
         headers: {
@@ -150,12 +154,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify(userData),
       });
       
+      console.log('Registration response status:', response.status);
+      
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('Registration error response:', errorText);
         throw new Error(errorText || 'Registration failed');
       }
       
       const newUser = await response.json();
+      console.log('Registration successful, user data:', newUser);
+      
       setUser(newUser);
       
       toast({
@@ -163,8 +172,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "Welcome to JagJar!",
       });
       
-      setLocation('/dashboard');
+      // Use window.location for more reliable redirect with a full page reload
+      console.log('Redirecting to dashboard after registration...');
+      window.location.href = '/dashboard';
     } catch (err) {
+      console.error('Registration error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
       
@@ -183,16 +195,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(true);
     
     try {
+      console.log('Attempting logout');
+      
       const response = await fetch('/api/logout', {
         method: 'POST',
         credentials: 'include',
       });
       
+      console.log('Logout response status:', response.status);
+      
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('Logout error response:', errorText);
         throw new Error(errorText || 'Logout failed');
       }
       
+      // Clear user from state
       setUser(null);
       
       toast({
@@ -200,8 +218,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         description: "You have been successfully logged out.",
       });
       
-      setLocation('/');
+      // Use window.location for more reliable redirect with a full page reload
+      console.log('Redirecting to home after logout...');
+      window.location.href = '/';
     } catch (err) {
+      console.error('Logout error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       
       toast({
