@@ -211,12 +211,96 @@ export function ApiKeyGenerator() {
           ) : apiKeys.length === 0 ? (
             <div className="text-center py-8 border rounded-md">
               <p className="text-muted-foreground mb-4">You don't have any API keys yet</p>
-              <DialogTrigger asChild>
-                <Button>
-                  <Plus className="h-4 w-4 mr-2" />
-                  Create Your First API Key
-                </Button>
-              </DialogTrigger>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Create Your First API Key
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Create New API Key</DialogTitle>
+                    <DialogDescription>
+                      Fill out the form below to generate a new API key for your application.
+                    </DialogDescription>
+                  </DialogHeader>
+                  
+                  <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                      <FormField
+                        control={form.control}
+                        name="name"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>API Key Name</FormLabel>
+                            <FormControl>
+                              <Input placeholder="My Web App" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              A descriptive name to identify this API key
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <FormField
+                        control={form.control}
+                        name="website"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Website URL (optional)</FormLabel>
+                            <FormControl>
+                              <Input placeholder="https://example.com" {...field} />
+                            </FormControl>
+                            <FormDescription>
+                              The URL of the website where this API key will be used
+                            </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                      
+                      <DialogFooter>
+                        <Button type="submit" disabled={createApiKeyMutation.isPending}>
+                          {createApiKeyMutation.isPending ? (
+                            <>
+                              <RefreshCw className="h-4 w-4 mr-2 animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            "Generate API Key"
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </form>
+                  </Form>
+                  
+                  {newApiKey && (
+                    <Alert className="mt-4">
+                      <AlertDescription className="break-all">
+                        <div className="font-semibold mb-2">Your new API key:</div>
+                        <div className="bg-muted p-2 rounded text-sm font-mono mb-2">
+                          {newApiKey}
+                        </div>
+                        <div className="text-sm text-muted-foreground mb-2">
+                          Copy this key now. For security reasons, you won't be able to see it again.
+                        </div>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => copyToClipboard(newApiKey)}
+                          className="mt-2"
+                        >
+                          <Copy className="h-4 w-4 mr-2" />
+                          Copy to Clipboard
+                        </Button>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                </DialogContent>
+              </Dialog>
             </div>
           ) : (
             <Table>
