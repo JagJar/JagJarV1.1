@@ -35,13 +35,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const checkAuthStatus = async () => {
       try {
+        console.log('Checking auth status...');
         const response = await fetch('/api/user', {
           credentials: 'include'
         });
         
+        console.log('Auth status response:', response.status);
+        
         if (response.ok) {
           const userData = await response.json();
+          console.log('User is authenticated:', userData);
           setUser(userData);
+        } else {
+          console.log('User is not authenticated');
         }
       } catch (err) {
         console.error('Error checking auth status:', err);
@@ -59,6 +65,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setError(null);
     
     try {
+      console.log('Attempting login with:', { username, password });
+      
       const response = await fetch('/api/login', {
         method: 'POST',
         headers: {
@@ -68,12 +76,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         body: JSON.stringify({ username, password }),
       });
       
+      console.log('Login response status:', response.status);
+      
       if (!response.ok) {
         const errorText = await response.text();
+        console.error('Login error response:', errorText);
         throw new Error(errorText || 'Login failed');
       }
       
       const userData = await response.json();
+      console.log('Login successful, user data:', userData);
+      
       setUser(userData);
       
       toast({
@@ -83,6 +96,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       setLocation('/dashboard');
     } catch (err) {
+      console.error('Login error:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
       setError(errorMessage);
       
