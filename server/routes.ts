@@ -75,13 +75,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         key: apiKeyString
       });
       
-      // If website URL is provided, create website record
-      if (req.body.website) {
-        await storage.createWebsite({
-          apiKeyId: apiKey.id,
-          url: req.body.website,
-          name: validatedData.name
-        });
+      // Only create a website record if there's a valid URL
+      if (req.body.website && typeof req.body.website === 'string' && req.body.website.trim() !== '') {
+        try {
+          // Ensure the URL is valid
+          const validUrl = req.body.website.startsWith('http://') || req.body.website.startsWith('https://') 
+            ? req.body.website 
+            : `https://${req.body.website}`;
+          
+          console.log("Creating website with URL:", validUrl);
+          await storage.createWebsite({
+            apiKeyId: apiKey.id,
+            url: validUrl,
+            name: validatedData.name
+          });
+          console.log("Website created successfully");
+        } catch (error) {
+          console.error("Error creating website record:", error);
+          // Continue without throwing an error - we already have the API key
+        }
       }
       
       res.status(201).json(apiKey);

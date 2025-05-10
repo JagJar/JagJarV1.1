@@ -56,11 +56,25 @@ export function ApiKeyGenerator() {
       });
       form.reset();
     },
-    onError: (error) => {
+    onError: (error: any) => {
       console.error("API Key creation error:", error);
+      
+      // Try to extract a readable error message
+      let errorMessage = "Unknown error occurred";
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.response && error.response.data) {
+        errorMessage = typeof error.response.data === 'object' 
+          ? JSON.stringify(error.response.data) 
+          : String(error.response.data);
+      } else if (typeof error === 'object') {
+        errorMessage = JSON.stringify(error);
+      }
+      
       toast({
         title: "Failed to create API key",
-        description: error.message || JSON.stringify(error),
+        description: errorMessage,
         variant: "destructive",
       });
     },
