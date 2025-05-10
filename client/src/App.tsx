@@ -12,6 +12,7 @@ import ApiKeys from "@/pages/dashboard/api-keys";
 import Analytics from "@/pages/dashboard/analytics";
 import Integration from "@/pages/dashboard/integration";
 import Earnings from "@/pages/dashboard/earnings";
+import RevenuePage from "@/pages/dashboard/revenue-page";
 import Settings from "@/pages/dashboard/settings";
 
 function Router() {
@@ -28,6 +29,7 @@ function Router() {
       <ProtectedRoute path="/dashboard/analytics" component={Analytics} />
       <ProtectedRoute path="/dashboard/integration" component={Integration} />
       <ProtectedRoute path="/dashboard/earnings" component={Earnings} />
+      <ProtectedRoute path="/dashboard/revenue" component={RevenuePage} />
       <ProtectedRoute path="/dashboard/settings" component={Settings} />
       
       <Route component={NotFound} />

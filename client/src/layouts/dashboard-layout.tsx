@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Sidebar, SidebarHeader, SidebarNav, SidebarNavItem, SidebarFooter } from "@/components/ui/sidebar";
 import { Link, useLocation } from "wouter";
-import { BarChart3, KeyRound, Code, DollarSign, Settings, LogOut } from "lucide-react";
+import { BarChart3, KeyRound, Code, DollarSign, Settings, LogOut, LineChart, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { User as SelectUser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -122,8 +122,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <SidebarNavItem href="/dashboard/integration" icon={Code}>
             Integration
           </SidebarNavItem>
-          <SidebarNavItem href="/dashboard/earnings" icon={DollarSign}>
+          <SidebarNavItem href="/dashboard/earnings" icon={LineChart}>
             Earnings
+          </SidebarNavItem>
+          <SidebarNavItem href="/dashboard/revenue" icon={Wallet}>
+            Revenue
           </SidebarNavItem>
           <SidebarNavItem href="/dashboard/settings" icon={Settings}>
             Settings
