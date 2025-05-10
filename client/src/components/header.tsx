@@ -10,6 +10,29 @@ export default function Header() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   
+  const handleLogout = async () => {
+    try {
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        console.log('Logout successful');
+        setUser(null);
+        // Redirect to home page
+        window.location.href = '/';
+      } else {
+        console.error('Logout failed:', response.status);
+      }
+    } catch (error) {
+      console.error('Error during logout:', error);
+    }
+  };
+  
   // Check authentication status directly on component mount and when location changes
   useEffect(() => {
     const checkAuthStatus = async () => {
@@ -97,14 +120,22 @@ export default function Header() {
           
           <div className="flex items-center space-x-4">
             {user ? (
-              <Button 
-                variant="ghost" 
-                onClick={() => {
-                  window.location.href = "/dashboard";
-                }}
-              >
-                Dashboard
-              </Button>
+              <>
+                <Button 
+                  variant="ghost" 
+                  onClick={() => {
+                    window.location.href = "/dashboard";
+                  }}
+                >
+                  Dashboard
+                </Button>
+                <Button 
+                  variant="outline"
+                  onClick={handleLogout}
+                >
+                  Logout
+                </Button>
+              </>
             ) : (
               <>
                 <Link href="/auth">
@@ -170,7 +201,28 @@ export default function Header() {
             >
               Extension
             </div>
-            {!user && (
+            {user ? (
+              <>
+                <div 
+                  className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500 cursor-pointer"
+                  onClick={() => {
+                    closeMenu();
+                    window.location.href = "/dashboard";
+                  }}
+                >
+                  Dashboard
+                </div>
+                <div 
+                  className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500 cursor-pointer"
+                  onClick={() => {
+                    closeMenu();
+                    handleLogout();
+                  }}
+                >
+                  Logout
+                </div>
+              </>
+            ) : (
               <div 
                 className="block px-4 py-2 font-medium hover:bg-primary-50 hover:text-primary-500 cursor-pointer"
                 onClick={() => {
