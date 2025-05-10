@@ -24,14 +24,18 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="flex h-screen overflow-hidden">
       <Sidebar className="w-64 hidden md:flex">
         <SidebarHeader>
-          <Link href="/">
-            <div className="flex items-center gap-2 cursor-pointer">
-              <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">J</span>
-              </div>
-              <span className="font-bold text-xl">JagJar</span>
+          <div 
+            className="flex items-center gap-2 cursor-pointer"
+            onClick={() => {
+              // Use window.location for more reliable navigation with auth state
+              window.location.href = '/';
+            }}
+          >
+            <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">J</span>
             </div>
-          </Link>
+            <span className="font-bold text-xl">JagJar</span>
+          </div>
         </SidebarHeader>
         <SidebarNav>
           <SidebarNavItem href="/dashboard" icon={BarChart3}>
