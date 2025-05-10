@@ -65,22 +65,26 @@ export function SidebarNavItem({
   const [location] = useLocation();
   const isActive = location === href;
 
+  const handleNavigation = (e: React.MouseEvent) => {
+    e.preventDefault();
+    window.location.href = href;
+  };
+
   return (
-    <Link href={href}>
-      <div
-        className={cn(
-          "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
-          isActive
-            ? "bg-sidebar-accent text-sidebar-accent-foreground"
-            : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
-          className
-        )}
-        {...props}
-      >
-        {Icon && <Icon className="h-4 w-4" />}
-        {children}
-      </div>
-    </Link>
+    <div
+      onClick={handleNavigation}
+      className={cn(
+        "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
+        isActive
+          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+          : "text-sidebar-foreground hover:bg-sidebar-accent/50 hover:text-sidebar-accent-foreground",
+        className
+      )}
+      {...props}
+    >
+      {Icon && <Icon className="h-4 w-4" />}
+      {children}
+    </div>
   );
 }
 
