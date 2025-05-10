@@ -32,20 +32,30 @@ export function TimeDistributionChart() {
                 data={distributionData}
                 cx="50%"
                 cy="50%"
-                labelLine={false}
-                label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                outerRadius={100}
+                labelLine={{ stroke: '#888', strokeWidth: 1, strokeDasharray: '3 3' }}
+                label={({ name, percent }) => `${name}:\n${(percent * 100).toFixed(0)}%`}
+                outerRadius={80}
                 fill="#8884d8"
                 dataKey="value"
+                fontSize={12}
               >
                 {distributionData.map((entry, index) => (
                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                 ))}
               </Pie>
               <Tooltip 
-                formatter={(value) => [`${value}%`, 'Percentage']}
+                formatter={(value, name, props) => [`${value}%`, 'Usage']}
+                contentStyle={{ fontSize: '12px', padding: '8px', borderRadius: '4px' }}
+                labelStyle={{ fontWeight: 'bold', marginBottom: '4px' }}
               />
-              <Legend />
+              <Legend 
+                layout="horizontal" 
+                verticalAlign="bottom" 
+                align="center"
+                wrapperStyle={{ paddingTop: '16px' }}
+                iconSize={10}
+                iconType="circle"
+              />
             </PieChart>
           </ResponsiveContainer>
         </div>
