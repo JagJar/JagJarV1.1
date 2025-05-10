@@ -78,9 +78,38 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Define a global function to refresh auth state
     window.refreshAuthState = checkAuthStatus;
     
+    // Add a navigation interceptor to ensure we refresh auth state on navigation
+    const originalPushState = window.history.pushState;
+    const originalReplaceState = window.history.replaceState;
+    
+    window.history.pushState = function(...args) {
+      const result = originalPushState.apply(this, args);
+      console.log('Navigation detected (pushState), refreshing auth state...');
+      checkAuthStatus();
+      return result;
+    };
+    
+    window.history.replaceState = function(...args) {
+      const result = originalReplaceState.apply(this, args);
+      console.log('Navigation detected (replaceState), refreshing auth state...');
+      checkAuthStatus();
+      return result;
+    };
+    
+    // Also refresh on popstate (browser back/forward)
+    const handlePopState = () => {
+      console.log('Navigation detected (popstate), refreshing auth state...');
+      checkAuthStatus();
+    };
+    
+    window.addEventListener('popstate', handlePopState);
+    
     return () => {
       // Clean up when component unmounts
       delete window.refreshAuthState;
+      window.history.pushState = originalPushState;
+      window.history.replaceState = originalReplaceState;
+      window.removeEventListener('popstate', handlePopState);
     };
   }, []);
 

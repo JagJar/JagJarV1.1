@@ -26,63 +26,54 @@ export default function Header() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center space-x-2">
-            <div 
-              className="flex items-center space-x-2 cursor-pointer"
-              onClick={() => window.location.href = "/"}
-            >
-              <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center">
-                <span className="text-white font-bold text-lg">J</span>
+            <Link href="/">
+              <div className="flex items-center space-x-2 cursor-pointer">
+                <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">J</span>
+                </div>
+                <span className="text-xl font-bold text-neutral-800">JagJar</span>
               </div>
-              <span className="text-xl font-bold text-neutral-800">JagJar</span>
-            </div>
+            </Link>
           </div>
           
           <nav className="hidden md:flex items-center space-x-8">
-            <div 
-              onClick={() => window.location.href = "/features"}
-              className={`font-medium ${isActive("/features") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}
-            >
-              Features
-            </div>
-            <div 
-              onClick={() => window.location.href = "/pricing"}
-              className={`font-medium ${isActive("/pricing") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}
-            >
-              Pricing
-            </div>
-            <div 
-              onClick={() => window.location.href = "/developers"}
-              className={`font-medium ${isActive("/developers") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}
-            >
-              Developers
-            </div>
-            <div 
-              onClick={() => window.location.href = "/extension"}
-              className={`font-medium ${isActive("/extension") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}
-            >
-              Extension
-            </div>
+            <Link href="/features">
+              <div className={`font-medium ${isActive("/features") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}>
+                Features
+              </div>
+            </Link>
+            <Link href="/pricing">
+              <div className={`font-medium ${isActive("/pricing") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}>
+                Pricing
+              </div>
+            </Link>
+            <Link href="/developers">
+              <div className={`font-medium ${isActive("/developers") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}>
+                Developers
+              </div>
+            </Link>
+            <Link href="/extension">
+              <div className={`font-medium ${isActive("/extension") ? "text-primary-500" : "hover:text-primary-500"} transition-colors cursor-pointer`}>
+                Extension
+              </div>
+            </Link>
           </nav>
           
           <div className="flex items-center space-x-4">
             {user ? (
-              <Button 
-                variant="ghost"
-                onClick={() => window.location.href = "/dashboard"}
-              >
-                Dashboard
-              </Button>
+              <Link href="/dashboard">
+                <Button variant="ghost">Dashboard</Button>
+              </Link>
             ) : (
               <>
-                <div 
-                  className="hidden sm:block font-medium hover:text-primary-500 transition-colors cursor-pointer"
-                  onClick={() => window.location.href = "/auth"}
-                >
-                  Login
-                </div>
-                <Button onClick={() => window.location.href = "/auth"}>
-                  Sign Up
-                </Button>
+                <Link href="/auth">
+                  <div className="hidden sm:block font-medium hover:text-primary-500 transition-colors cursor-pointer">
+                    Login
+                  </div>
+                </Link>
+                <Link href="/auth">
+                  <Button>Sign Up</Button>
+                </Link>
               </>
             )}
             <button 
