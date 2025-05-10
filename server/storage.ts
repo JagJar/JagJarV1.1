@@ -36,6 +36,7 @@ export interface IStorage {
   // Website operations
   createWebsite(website: InsertWebsite): Promise<Website>;
   getWebsitesByApiKeyId(apiKeyId: number): Promise<Website[]>;
+  getWebsiteById(id: number): Promise<Website | undefined>;
   
   // Time Tracking operations
   createTimeTracking(timeTracking: InsertTimeTracking): Promise<TimeTracking>;
@@ -45,6 +46,23 @@ export interface IStorage {
   // Revenue operations
   createRevenue(revenue: InsertRevenue): Promise<Revenue>;
   getRevenueByDeveloperId(developerId: number): Promise<Revenue[]>;
+  
+  // Payout operations
+  createPayout(payout: any): Promise<any>;
+  getPayoutsByDeveloperId(developerId: number): Promise<any[]>;
+  updatePayoutStatus(id: number, status: string): Promise<any>;
+  
+  // Revenue Settings operations
+  getRevenueSettings(): Promise<any>;
+  updateRevenueSettings(settings: any): Promise<any>;
+  
+  // Revenue Distribution operations
+  logRevenueDistribution(log: any): Promise<any>;
+  getRevenueDistributionLogs(): Promise<any[]>;
+  
+  // Developer Earnings operations
+  createDeveloperEarning(earning: any): Promise<any>;
+  getDeveloperEarningsByDeveloperId(developerId: number, month?: string): Promise<any[]>;
   
   // Session store
   sessionStore: session.Store;
