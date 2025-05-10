@@ -1,13 +1,46 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/hooks/use-auth";
 import { Menu, X } from "lucide-react";
+import { User } from "@shared/schema";
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [location] = useLocation();
-  const { user } = useAuth();
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  
+  // Check authentication status directly on component mount and when location changes
+  useEffect(() => {
+    const checkAuthStatus = async () => {
+      setLoading(true);
+      try {
+        console.log("Checking auth status...");
+        const response = await fetch("/api/user", {
+          method: "GET",
+          credentials: "include"
+        });
+        
+        console.log("Auth status response:", response.status);
+        
+        if (response.status === 200) {
+          const userData = await response.json();
+          console.log("User is authenticated:", userData);
+          setUser(userData);
+        } else {
+          console.log("User is not authenticated");
+          setUser(null);
+        }
+      } catch (error) {
+        console.error("Error checking auth status:", error);
+        setUser(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkAuthStatus();
+  }, [location]);
 
   const toggleMenu = () => {
     setIsMenuOpen(!isMenuOpen);
@@ -26,14 +59,17 @@ export default function Header() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center space-x-2">
-            <Link href="/">
-              <div className="flex items-center space-x-2 cursor-pointer">
-                <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">J</span>
-                </div>
-                <span className="text-xl font-bold text-neutral-800">JagJar</span>
+            <div
+              className="flex items-center space-x-2 cursor-pointer"
+              onClick={() => {
+                window.location.href = "/";
+              }}
+            >
+              <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center">
+                <span className="text-white font-bold text-lg">J</span>
               </div>
-            </Link>
+              <span className="text-xl font-bold text-neutral-800">JagJar</span>
+            </div>
           </div>
           
           <nav className="hidden md:flex items-center space-x-8">
@@ -61,9 +97,14 @@ export default function Header() {
           
           <div className="flex items-center space-x-4">
             {user ? (
-              <Link href="/dashboard">
-                <Button variant="ghost">Dashboard</Button>
-              </Link>
+              <Button 
+                variant="ghost" 
+                onClick={() => {
+                  window.location.href = "/dashboard";
+                }}
+              >
+                Dashboard
+              </Button>
             ) : (
               <>
                 <Link href="/auth">
