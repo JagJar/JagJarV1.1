@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import { Sidebar, SidebarHeader, SidebarNav, SidebarNavItem, SidebarFooter } from "@/components/ui/sidebar";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { BarChart3, KeyRound, Code, DollarSign, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { User as SelectUser } from "@shared/schema";
+import { useToast } from "@/hooks/use-toast";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -11,6 +12,9 @@ interface DashboardLayoutProps {
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
   const [currentUser, setCurrentUser] = useState<SelectUser | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
+  const [_, navigate] = useLocation();
   
   // Fetch user data directly in the dashboard
   useEffect(() => {
@@ -26,7 +30,12 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           console.log('Fetched user data for dashboard:', user);
           setCurrentUser(user);
         } else {
-          console.error('Failed to fetch user data');
+          console.error('Failed to fetch user data, status:', response.status);
+          // If we get a 401, we're not authenticated, redirect to login
+          if (response.status === 401) {
+            console.log('User not authenticated, redirecting to auth page...');
+            window.location.href = '/auth';
+          }
           setCurrentUser(null);
         }
       } catch (error) {
@@ -36,29 +45,49 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     };
     
     fetchUserData();
+    
+    // Set up an interval to periodically check auth status
+    const interval = setInterval(fetchUserData, 60000); // Check every minute
+    
+    return () => clearInterval(interval);
   }, []);
 
   const handleLogout = async () => {
     try {
+      setIsLoading(true);
       console.log('Logging out from dashboard...');
       const response = await fetch('/api/logout', {
         method: 'POST',
         credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json'
-        }
       });
       
       if (response.ok) {
         // Logout successful
+        toast({
+          title: "Logged out",
+          description: "You have been successfully logged out.",
+        });
+        
         console.log('Logout successful from dashboard');
-        // Redirect to home page after logout
+        // Redirect to home page after logout with a full page reload
         window.location.href = '/';
       } else {
         console.error('Logout failed:', response.status);
+        toast({
+          title: "Logout failed",
+          description: "An error occurred while logging out.",
+          variant: "destructive",
+        });
       }
     } catch (error) {
       console.error('Logout error:', error);
+      toast({
+        title: "Logout failed",
+        description: "An error occurred while logging out.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
     }
   };
 

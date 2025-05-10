@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Loader2 } from "lucide-react";
-import { Route } from "wouter";
+import { Route, useLocation } from "wouter";
 
 export function ProtectedRoute({
   path,
@@ -9,11 +9,57 @@ export function ProtectedRoute({
   path: string;
   component: () => React.JSX.Element;
 }) {
-  // Return a route with a special render function without checking auth
-  // This is a temporary solution until we have a more reliable auth system
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [_, navigate] = useLocation();
+
+  useEffect(() => {
+    const checkAuth = async () => {
+      try {
+        const response = await fetch('/api/user', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          setIsAuthenticated(true);
+        } else {
+          console.log('Not authenticated, redirecting to auth page');
+          setIsAuthenticated(false);
+          window.location.href = '/auth';
+        }
+      } catch (error) {
+        console.error('Error checking authentication:', error);
+        setIsAuthenticated(false);
+        window.location.href = '/auth';
+      }
+    };
+    
+    checkAuth();
+  }, [navigate]);
+
   return (
     <Route path={path}>
-      {() => <Component />}
+      {() => {
+        if (isAuthenticated === null) {
+          // Show a loading state while we check authentication
+          return (
+            <div className="flex items-center justify-center min-h-screen">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          );
+        }
+        
+        if (isAuthenticated === false) {
+          // We'll handle the redirect in the useEffect
+          return (
+            <div className="flex items-center justify-center min-h-screen">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          );
+        }
+        
+        // User is authenticated, render the component
+        return <Component />;
+      }}
     </Route>
   );
 }

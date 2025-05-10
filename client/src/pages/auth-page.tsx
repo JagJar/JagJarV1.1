@@ -159,12 +159,25 @@ export default function AuthPage() {
     }
   };
 
-  // Redirect if user is already logged in
+  // Check authentication status directly and redirect if logged in
   useEffect(() => {
-    if (user) {
-      setLocation("/dashboard");
-    }
-  }, [user, setLocation]);
+    const checkAuthStatus = async () => {
+      try {
+        const response = await fetch('/api/user', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          console.log('User already authenticated, redirecting to dashboard');
+          window.location.href = '/dashboard';
+        }
+      } catch (error) {
+        console.error('Error checking auth status:', error);
+      }
+    };
+    
+    checkAuthStatus();
+  }, []);
 
   return (
     <div className="min-h-screen flex">
