@@ -45,7 +45,7 @@ export async function calculateMonthlyRevenue(month?: string) {
   const [settings] = await db.select().from(revenueSettings).limit(1);
   
   // Default settings if none exist
-  const platformFeePercentage = settings?.platformFeePercentage || 30;
+  const platformFeePercentage = settings ? Number(settings.platformFeePercentage) : 30;
   const minimumPayoutAmount = settings?.minimumPayoutAmount || 1000; // $10 in cents
   
   // 1. Calculate total premium user time for the month

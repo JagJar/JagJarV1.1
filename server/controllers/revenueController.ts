@@ -1,7 +1,7 @@
 import { Request, Response } from "express";
 import { db } from "../db";
 import { eq } from "drizzle-orm";
-import { developers } from "@shared/schema";
+import { developers, revenueSettings } from "@shared/schema";
 import * as revenueService from "../services/revenueDistribution";
 import { z } from "zod";
 
