@@ -57,9 +57,10 @@ export function ApiKeyGenerator() {
       form.reset();
     },
     onError: (error) => {
+      console.error("API Key creation error:", error);
       toast({
         title: "Failed to create API key",
-        description: error.message,
+        description: error.message || JSON.stringify(error),
         variant: "destructive",
       });
     },
