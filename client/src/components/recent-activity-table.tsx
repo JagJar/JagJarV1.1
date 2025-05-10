@@ -4,48 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { RefreshCw } from "lucide-react";
 
 export function RecentActivityTable() {
-  const { data: activities = [], isLoading } = useQuery({
+  const { data: activities, isLoading, error } = useQuery({
     queryKey: ["/api/analytics/recent-activity"],
   });
-
-  // Sample data for visualization
-  const recentActivities = [
-    {
-      id: 1,
-      user: { name: "John Doe", avatar: "JD", isPremium: true },
-      timeSpent: "32 minutes",
-      page: "/dashboard",
-      date: "Today, 10:45 AM"
-    },
-    {
-      id: 2,
-      user: { name: "Alice Smith", avatar: "AS", isPremium: false },
-      timeSpent: "18 minutes",
-      page: "/features",
-      date: "Today, 9:12 AM"
-    },
-    {
-      id: 3,
-      user: { name: "Robert Johnson", avatar: "RJ", isPremium: true },
-      timeSpent: "45 minutes",
-      page: "/analytics",
-      date: "Yesterday, 4:30 PM"
-    },
-    {
-      id: 4,
-      user: { name: "Emily Davis", avatar: "ED", isPremium: true },
-      timeSpent: "27 minutes",
-      page: "/settings",
-      date: "Yesterday, 2:15 PM"
-    },
-    {
-      id: 5,
-      user: { name: "Michael Brown", avatar: "MB", isPremium: false },
-      timeSpent: "12 minutes",
-      page: "/profile",
-      date: "Yesterday, 10:20 AM"
-    }
-  ];
 
   return (
     <Card>
@@ -61,7 +22,11 @@ export function RecentActivityTable() {
             <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground mb-2" />
             <p className="text-sm text-muted-foreground">Loading recent activity...</p>
           </div>
-        ) : (
+        ) : error ? (
+          <div className="flex flex-col items-center justify-center py-8">
+            <p className="text-sm text-destructive">Failed to load recent activity data</p>
+          </div>
+        ) : activities && activities.length > 0 ? (
           <Table>
             <TableHeader>
               <TableRow>
@@ -72,7 +37,7 @@ export function RecentActivityTable() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {recentActivities.map((activity) => (
+              {activities.map((activity) => (
                 <TableRow key={activity.id}>
                   <TableCell>
                     <div className="flex items-center">
@@ -94,6 +59,10 @@ export function RecentActivityTable() {
               ))}
             </TableBody>
           </Table>
+        ) : (
+          <div className="flex flex-col items-center justify-center py-8">
+            <p className="text-sm text-muted-foreground">No recent activity data available</p>
+          </div>
         )}
       </CardContent>
     </Card>

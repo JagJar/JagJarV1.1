@@ -175,31 +175,98 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Developer not found" });
       }
       
-      // Mock analytics data 
-      // In a real implementation, this would retrieve actual analytics data
+      // Get API keys for this developer
+      const apiKeys = await storage.getApiKeysByDeveloperId(developer.id);
+      
+      if (!apiKeys || apiKeys.length === 0) {
+        // Return empty analytics if developer has no API keys
+        return res.json({
+          totalTime: 0,
+          activeUsers: 0,
+          estimatedEarnings: 0,
+          timeData: []
+        });
+      }
+      
+      // Get all websites associated with this developer's API keys
+      const apiKeyIds = apiKeys.map(key => key.id);
+      let websites = [];
+      
+      for (const apiKeyId of apiKeyIds) {
+        const websitesForKey = await storage.getWebsitesByApiKeyId(apiKeyId);
+        websites = websites.concat(websitesForKey);
+      }
+      
+      if (websites.length === 0) {
+        // Return empty analytics if developer has no websites
+        return res.json({
+          totalTime: 0,
+          activeUsers: 0,
+          estimatedEarnings: 0,
+          timeData: []
+        });
+      }
+      
+      // Get all time tracking data for the websites
+      const websiteIds = websites.map(website => website.id);
+      let totalTimeSeconds = 0;
+      let uniqueUserIds = new Set();
+      const timeDataByDate = new Map();
+      
+      for (const websiteId of websiteIds) {
+        const timeTrackingData = await storage.getTimeTrackingByWebsiteId(websiteId);
+        
+        // Calculate total time
+        for (const record of timeTrackingData) {
+          totalTimeSeconds += record.duration;
+          uniqueUserIds.add(record.userId);
+          
+          // Format the date for display (e.g., "Mar 26")
+          const date = new Date(record.date);
+          const formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: '2-digit' });
+          
+          // Accumulate hours by date
+          const hoursForRecord = Math.round(record.duration / 3600);
+          if (timeDataByDate.has(formattedDate)) {
+            timeDataByDate.set(formattedDate, timeDataByDate.get(formattedDate) + hoursForRecord);
+          } else {
+            timeDataByDate.set(formattedDate, hoursForRecord);
+          }
+        }
+      }
+      
+      // Get earnings data
+      const earningsData = await storage.getRevenueByDeveloperId(developer.id);
+      let estimatedEarnings = 0;
+      
+      if (earningsData && earningsData.length > 0) {
+        // Sum up all earnings
+        estimatedEarnings = earningsData.reduce((total, record) => total + record.amount, 0) / 100;
+      }
+      
+      // Convert timeDataByDate map to array for chart
+      const timeData = Array.from(timeDataByDate).map(([date, hours]) => ({
+        date,
+        hours
+      }));
+      
+      // Sort timeData chronologically
+      timeData.sort((a, b) => {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return dateA.getTime() - dateB.getTime();
+      });
+      
       const analyticsData = {
-        totalTime: 2450,
-        activeUsers: 1285,
-        estimatedEarnings: 1245.32,
-        timeData: [
-          { date: 'Jan 01', hours: 142 },
-          { date: 'Jan 08', hours: 189 },
-          { date: 'Jan 15', hours: 231 },
-          { date: 'Jan 22', hours: 256 },
-          { date: 'Jan 29', hours: 312 },
-          { date: 'Feb 05', hours: 275 },
-          { date: 'Feb 12', hours: 298 },
-          { date: 'Feb 19', hours: 344 },
-          { date: 'Feb 26', hours: 385 },
-          { date: 'Mar 05', hours: 421 },
-          { date: 'Mar 12', hours: 465 },
-          { date: 'Mar 19', hours: 498 },
-          { date: 'Mar 26', hours: 510 }
-        ]
+        totalTime: totalTimeSeconds,
+        activeUsers: uniqueUserIds.size,
+        estimatedEarnings: estimatedEarnings,
+        timeData: timeData
       };
       
       res.json(analyticsData);
     } catch (error) {
+      console.error("Analytics overview error:", error);
       res.status(500).json({ message: "Failed to retrieve analytics overview" });
     }
   });
@@ -217,17 +284,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Developer not found" });
       }
       
-      // Mock time distribution data
-      const distributionData = [
-        { name: 'Dashboard', value: 45 },
-        { name: 'Analytics', value: 25 },
-        { name: 'User Profile', value: 15 },
-        { name: 'Settings', value: 10 },
-        { name: 'Other', value: 5 }
-      ];
+      // Get API keys for this developer
+      const apiKeys = await storage.getApiKeysByDeveloperId(developer.id);
       
-      res.json(distributionData);
+      if (!apiKeys || apiKeys.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get all websites associated with this developer's API keys
+      const apiKeyIds = apiKeys.map(key => key.id);
+      let websites = [];
+      
+      for (const apiKeyId of apiKeyIds) {
+        const websitesForKey = await storage.getWebsitesByApiKeyId(apiKeyId);
+        websites = websites.concat(websitesForKey);
+      }
+      
+      if (websites.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get time distribution by website
+      const distributionData = [];
+      const websiteIds = websites.map(website => website.id);
+      const websiteNameMap = new Map(websites.map(website => [website.id, website.name]));
+      
+      let totalTime = 0;
+      
+      // First, calculate total time across all websites
+      for (const websiteId of websiteIds) {
+        const timeTrackingData = await storage.getTimeTrackingByWebsiteId(websiteId);
+        for (const record of timeTrackingData) {
+          totalTime += record.duration;
+        }
+      }
+      
+      // If there's no time tracked, return empty array
+      if (totalTime === 0) {
+        return res.json([]);
+      }
+      
+      // Get time for each website and calculate percentage
+      for (const websiteId of websiteIds) {
+        const timeTrackingData = await storage.getTimeTrackingByWebsiteId(websiteId);
+        
+        if (timeTrackingData.length > 0) {
+          const websiteTime = timeTrackingData.reduce((sum, record) => sum + record.duration, 0);
+          const percentage = Math.round((websiteTime / totalTime) * 100);
+          
+          if (percentage > 0) {
+            distributionData.push({
+              name: websiteNameMap.get(websiteId) || `Website ${websiteId}`,
+              value: percentage
+            });
+          }
+        }
+      }
+      
+      // If we have too many websites with small percentages, combine them into "Other"
+      if (distributionData.length > 5) {
+        // Sort by value (highest first)
+        distributionData.sort((a, b) => b.value - a.value);
+        
+        // Take top 4 websites
+        const topSites = distributionData.slice(0, 4);
+        
+        // Combine the rest into "Other"
+        const otherSites = distributionData.slice(4);
+        const otherValue = otherSites.reduce((sum, site) => sum + site.value, 0);
+        
+        // Return top 4 + "Other"
+        const result = [...topSites];
+        if (otherValue > 0) {
+          result.push({ name: 'Other', value: otherValue });
+        }
+        
+        res.json(result);
+      } else {
+        res.json(distributionData);
+      }
     } catch (error) {
+      console.error("Time distribution error:", error);
       res.status(500).json({ message: "Failed to retrieve time distribution data" });
     }
   });

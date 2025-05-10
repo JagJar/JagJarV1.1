@@ -1,29 +1,58 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowUpRight, RefreshCw } from "lucide-react";
 import { ResponsiveContainer, LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip } from "recharts";
 
+// Helper function to format hours
+const formatHours = (seconds: number): string => {
+  const hours = Math.floor(seconds / 3600);
+  return `${hours.toLocaleString()} hours`;
+};
+
+// Helper function to format currency
+const formatCurrency = (cents: number): string => {
+  return `$${(cents / 100).toFixed(2).toLocaleString()}`;
+};
+
 export function AnalyticsOverview() {
-  const { data: analyticsData, isLoading } = useQuery({
+  const { data: analyticsData, isLoading, error } = useQuery({
     queryKey: ["/api/analytics/overview"],
   });
-  
-  // Sample data for visualization
-  const timeData = [
-    { date: 'Jan 01', hours: 142 },
-    { date: 'Jan 08', hours: 189 },
-    { date: 'Jan 15', hours: 231 },
-    { date: 'Jan 22', hours: 256 },
-    { date: 'Jan 29', hours: 312 },
-    { date: 'Feb 05', hours: 275 },
-    { date: 'Feb 12', hours: 298 },
-    { date: 'Feb 19', hours: 344 },
-    { date: 'Feb 26', hours: 385 },
-    { date: 'Mar 05', hours: 421 },
-    { date: 'Mar 12', hours: 465 },
-    { date: 'Mar 19', hours: 498 },
-    { date: 'Mar 26', hours: 510 }
-  ];
+
+  if (isLoading) {
+    return (
+      <div className="space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {[1, 2, 3].map((i) => (
+            <Card key={i}>
+              <CardContent className="pt-6 flex flex-col items-center justify-center min-h-[120px]">
+                <RefreshCw className="h-8 w-8 animate-spin text-muted-foreground mb-2" />
+                <p className="text-sm text-muted-foreground">Loading data...</p>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card>
+          <CardContent className="py-10 flex flex-col items-center justify-center">
+            <RefreshCw className="h-10 w-10 animate-spin text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">Loading analytics data...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="space-y-6">
+        <Card>
+          <CardContent className="py-10 flex flex-col items-center justify-center">
+            <p className="text-destructive">Failed to load analytics data</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -38,7 +67,9 @@ export function AnalyticsOverview() {
             </svg>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold mb-1">2,450 hours</div>
+            <div className="text-2xl font-bold mb-1">
+              {analyticsData?.totalTime ? formatHours(analyticsData.totalTime) : "0 hours"}
+            </div>
             <div className="flex items-center text-xs text-green-500">
               <ArrowUpRight className="h-3.5 w-3.5 mr-1" />
               <span>+12.5% from last month</span>
@@ -56,7 +87,9 @@ export function AnalyticsOverview() {
             </svg>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold mb-1">1,285</div>
+            <div className="text-2xl font-bold mb-1">
+              {analyticsData?.activeUsers?.toLocaleString() || "0"}
+            </div>
             <div className="flex items-center text-xs text-green-500">
               <ArrowUpRight className="h-3.5 w-3.5 mr-1" />
               <span>+8.3% from last month</span>
@@ -74,7 +107,9 @@ export function AnalyticsOverview() {
             </svg>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold mb-1">$1,245.32</div>
+            <div className="text-2xl font-bold mb-1">
+              {analyticsData?.estimatedEarnings ? formatCurrency(Math.round(analyticsData.estimatedEarnings * 100)) : "$0.00"}
+            </div>
             <div className="flex items-center text-xs text-green-500">
               <ArrowUpRight className="h-3.5 w-3.5 mr-1" />
               <span>+15.7% from last month</span>
@@ -89,15 +124,21 @@ export function AnalyticsOverview() {
         </CardHeader>
         <CardContent>
           <div className="h-[300px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={timeData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Line type="monotone" dataKey="hours" stroke="#4c5fd5" activeDot={{ r: 8 }} />
-              </LineChart>
-            </ResponsiveContainer>
+            {analyticsData?.timeData && analyticsData.timeData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart data={analyticsData.timeData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" />
+                  <YAxis />
+                  <Tooltip />
+                  <Line type="monotone" dataKey="hours" stroke="#4c5fd5" activeDot={{ r: 8 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full">
+                <p className="text-sm text-muted-foreground">No usage trend data available</p>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
