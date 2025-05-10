@@ -9,6 +9,7 @@ import {
   insertWebsiteSchema, 
   insertTimeTrackingSchema 
 } from "@shared/schema";
+import * as revenueController from "./controllers/revenueController";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Setup authentication routes (/api/register, /api/login, /api/logout, /api/user)
@@ -346,6 +347,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to retrieve earnings data" });
     }
   });
+
+  // Developer Revenue Distribution API Routes
+  // Get earnings overview
+  app.get("/api/revenue/earnings", revenueController.getDeveloperEarnings);
+  
+  // Get detailed earnings by website for a specific month
+  app.get("/api/revenue/earnings/:month", revenueController.getDeveloperEarningsDetails);
+  
+  // Get payout history
+  app.get("/api/revenue/payouts", revenueController.getDeveloperPayouts);
+  
+  // Admin routes
+  app.post("/api/admin/revenue/calculate", revenueController.calculateRevenue);
+  app.get("/api/admin/revenue/settings", revenueController.getRevenueSettings);
+  app.put("/api/admin/revenue/settings", revenueController.updateRevenueSettings);
+  app.get("/api/admin/revenue/stats", revenueController.getPlatformRevenueStats);
+  app.get("/api/admin/revenue/top-developers/:month", revenueController.getTopEarningDevelopers);
 
   const httpServer = createServer(app);
   return httpServer;
