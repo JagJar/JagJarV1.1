@@ -17,7 +17,10 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const apiKeyFormSchema = z.object({
   name: z.string().min(3, "API key name must be at least 3 characters"),
-  website: z.string().url("Please enter a valid URL").optional().or(z.literal("")),
+  website: z.string().refine(
+    val => val === "" || /^https?:\/\/\w+/.test(val), 
+    "Please enter a valid URL starting with http:// or https://"
+  ),
 });
 
 type ApiKeyFormValues = z.infer<typeof apiKeyFormSchema>;
@@ -148,7 +151,7 @@ export function ApiKeyGenerator() {
                       <Input placeholder="https://example.com" {...field} />
                     </FormControl>
                     <FormDescription>
-                      The URL of the website where this API key will be used
+                      The URL of the website where this API key will be used (leave empty or enter a valid URL starting with http:// or https://)
                     </FormDescription>
                     <FormMessage />
                   </FormItem>
@@ -255,7 +258,7 @@ export function ApiKeyGenerator() {
                               <Input placeholder="https://example.com" {...field} />
                             </FormControl>
                             <FormDescription>
-                              The URL of the website where this API key will be used
+                              The URL of the website where this API key will be used (leave empty or enter a valid URL starting with http:// or https://)
                             </FormDescription>
                             <FormMessage />
                           </FormItem>
