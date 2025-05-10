@@ -1,9 +1,76 @@
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 
-export function ExtensionPreview() {
+interface ExtensionPreviewProps {
+  browser?: string;
+}
+
+export function ExtensionPreview({ browser = "chrome" }: ExtensionPreviewProps) {
+  // Browser-specific styles and elements
+  const browserStyles = {
+    chrome: {
+      iconBg: "bg-blue-600",
+      badgeText: "Chrome Web Store",
+      badgeColor: "bg-blue-600"
+    },
+    firefox: {
+      iconBg: "bg-orange-500",
+      badgeText: "Firefox Add-ons",
+      badgeColor: "bg-orange-600"
+    },
+    safari: {
+      iconBg: "bg-blue-500",
+      badgeText: "Safari Extensions",
+      badgeColor: "bg-blue-500"
+    },
+    edge: {
+      iconBg: "bg-teal-600",
+      badgeText: "Edge Add-ons",
+      badgeColor: "bg-teal-600"
+    }
+  };
+
+  const currentStyle = browserStyles[browser as keyof typeof browserStyles] || browserStyles.chrome;
+
+  // Browser-specific UI variations
+  const getBrowserUI = () => {
+    switch(browser) {
+      case "safari":
+        return {
+          windowControls: (
+            <div className="flex space-x-2 absolute top-4 left-4">
+              <div className="w-3 h-3 rounded-full bg-red-500"></div>
+              <div className="w-3 h-3 rounded-full bg-yellow-500"></div>
+              <div className="w-3 h-3 rounded-full bg-green-500"></div>
+            </div>
+          ),
+          extraClass: "safari-style"
+        };
+      case "firefox":
+        return {
+          windowControls: null,
+          extraClass: "firefox-style"
+        };
+      case "edge":
+        return {
+          windowControls: null,
+          extraClass: "edge-style"
+        };
+      case "chrome":
+      default:
+        return {
+          windowControls: null,
+          extraClass: "chrome-style"
+        };
+    }
+  };
+
+  const browserUI = getBrowserUI();
+  
   return (
-    <div className="bg-neutral-100 rounded-xl p-8 relative overflow-hidden shadow-lg">
+    <div className={`bg-neutral-100 rounded-xl p-8 relative overflow-hidden shadow-lg ${browserUI.extraClass}`}>
+      {browserUI.windowControls}
+      
       {/* Extension icon preview */}
       <div className="flex justify-center mb-8">
         <div className="w-24 h-24 rounded-xl shadow-md bg-primary-500 gradient-bg flex items-center justify-center">
@@ -46,9 +113,11 @@ export function ExtensionPreview() {
         </Link>
       </div>
       
-      {/* Chrome Web Store badge */}
+      {/* Browser-specific store badge */}
       <div className="absolute bottom-4 right-4">
-        <div className="bg-blue-600 text-white text-xs px-3 py-1 rounded-full">Chrome Web Store</div>
+        <div className={`${currentStyle.badgeColor} text-white text-xs px-3 py-1 rounded-full`}>
+          {currentStyle.badgeText}
+        </div>
       </div>
     </div>
   );

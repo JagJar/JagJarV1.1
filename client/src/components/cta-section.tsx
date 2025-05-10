@@ -30,11 +30,11 @@ export default function CtaSection() {
               <Smartphone className="h-12 w-12 mx-auto mb-6 text-white" />
               <h3 className="text-2xl font-bold mb-4">For Users</h3>
               <p className="mb-6 opacity-90">
-                Access great web applications with our browser extension and support the developers you love.
+                Access great web applications with our browser extensions for Chrome, Firefox, Safari, and Edge to support the developers you love.
               </p>
               <Link href="/extension">
                 <Button className="bg-white text-primary-600 hover:bg-neutral-100">
-                  Get the Extension
+                  Get Extensions
                 </Button>
               </Link>
             </div>

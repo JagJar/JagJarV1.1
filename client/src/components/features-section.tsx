@@ -60,8 +60,14 @@ export default function FeaturesSection() {
                 <Clock className="h-6 w-6 text-secondary-500" />
               </div>
               <h3 className="text-xl font-bold text-neutral-800 mb-3">For Users</h3>
-              <p className="text-neutral-600 mb-4">Install the JagJar browser extension to access JagJar-enabled websites with time tracking.</p>
+              <p className="text-neutral-600 mb-4">Install the JagJar browser extension on your favorite browser to access JagJar-enabled websites with time tracking.</p>
               <ul className="space-y-2 mb-6">
+                <li className="flex items-start">
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mt-0.5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                  <span>Available for Chrome, Firefox, Safari & Edge</span>
+                </li>
                 <li className="flex items-start">
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mt-0.5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -78,7 +84,7 @@ export default function FeaturesSection() {
                   <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500 mt-0.5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
-                  <span>Seamless browsing experience</span>
+                  <span>Cross-device synchronization</span>
                 </li>
               </ul>
               <Link href="/extension">
