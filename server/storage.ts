@@ -4,11 +4,15 @@ import {
   apiKeys, type ApiKey, type InsertApiKey,
   websites, type Website, type InsertWebsite,
   timeTracking, type TimeTracking, type InsertTimeTracking,
-  revenue, type Revenue, type InsertRevenue
+  revenue, type Revenue, type InsertRevenue,
+  payouts,
+  revenueSettings,
+  revenueDistributionLogs,
+  developerEarnings
 } from "@shared/schema";
 import session from "express-session";
 import { db } from "./db";
-import { eq } from "drizzle-orm";
+import { eq, desc, and, asc } from "drizzle-orm";
 import connectPg from "connect-pg-simple";
 import { pool } from "./db";
 
@@ -207,6 +211,14 @@ export class DatabaseStorage implements IStorage {
       .from(websites)
       .where(eq(websites.apiKeyId, apiKeyId));
   }
+  
+  async getWebsiteById(id: number): Promise<Website | undefined> {
+    const [website] = await db
+      .select()
+      .from(websites)
+      .where(eq(websites.id, id));
+    return website;
+  }
 
   // Time Tracking operations
   async createTimeTracking(insertTimeTrackingData: InsertTimeTracking): Promise<TimeTracking> {
@@ -246,6 +258,94 @@ export class DatabaseStorage implements IStorage {
       .from(revenue)
       .where(eq(revenue.developerId, developerId))
       .orderBy(revenue.month);
+  }
+  
+  // Payout operations
+  async createPayout(payout: any): Promise<any> {
+    const [newPayout] = await db
+      .insert(payouts)
+      .values(payout)
+      .returning();
+    return newPayout;
+  }
+  
+  async getPayoutsByDeveloperId(developerId: number): Promise<any[]> {
+    return db
+      .select()
+      .from(payouts)
+      .where(eq(payouts.developerId, developerId))
+      .orderBy(desc(payouts.createdAt));
+  }
+  
+  async updatePayoutStatus(id: number, status: string): Promise<any> {
+    const [updatedPayout] = await db
+      .update(payouts)
+      .set({ status })
+      .where(eq(payouts.id, id))
+      .returning();
+    return updatedPayout;
+  }
+  
+  // Revenue Settings operations
+  async getRevenueSettings(): Promise<any> {
+    const [settings] = await db
+      .select()
+      .from(revenueSettings)
+      .limit(1);
+    return settings;
+  }
+  
+  async updateRevenueSettings(settings: any): Promise<any> {
+    const [updatedSettings] = await db
+      .update(revenueSettings)
+      .set({
+        ...settings,
+        updatedAt: new Date()
+      })
+      .where(eq(revenueSettings.id, 1))
+      .returning();
+    return updatedSettings;
+  }
+  
+  // Revenue Distribution operations
+  async logRevenueDistribution(log: any): Promise<any> {
+    const [newLog] = await db
+      .insert(revenueDistributionLogs)
+      .values(log)
+      .returning();
+    return newLog;
+  }
+  
+  async getRevenueDistributionLogs(): Promise<any[]> {
+    return db
+      .select()
+      .from(revenueDistributionLogs)
+      .orderBy(desc(revenueDistributionLogs.runAt));
+  }
+  
+  // Developer Earnings operations
+  async createDeveloperEarning(earning: any): Promise<any> {
+    const [newEarning] = await db
+      .insert(developerEarnings)
+      .values(earning)
+      .returning();
+    return newEarning;
+  }
+  
+  async getDeveloperEarningsByDeveloperId(developerId: number, month?: string): Promise<any[]> {
+    let query = db
+      .select()
+      .from(developerEarnings)
+      .where(eq(developerEarnings.developerId, developerId));
+      
+    if (month) {
+      query = query.where(eq(developerEarnings.month, month));
+    }
+    
+    return query.orderBy([
+      desc(developerEarnings.month),
+      desc(developerEarnings.earnings)
+    ]);
   }
 }
 
