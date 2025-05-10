@@ -382,24 +382,87 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Developer not found" });
       }
       
-      // Mock user growth data
-      const growthData = [
-        { month: 'Jan', new: 65, returning: 90 },
-        { month: 'Feb', new: 78, returning: 112 },
-        { month: 'Mar', new: 95, returning: 135 },
-        { month: 'Apr', new: 87, returning: 164 },
-        { month: 'May', new: 105, returning: 192 },
-        { month: 'Jun', new: 120, returning: 223 },
-        { month: 'Jul', new: 134, returning: 246 },
-        { month: 'Aug', new: 112, returning: 289 },
-        { month: 'Sep', new: 98, returning: 310 },
-        { month: 'Oct', new: 127, returning: 325 },
-        { month: 'Nov', new: 145, returning: 346 },
-        { month: 'Dec', new: 123, returning: 367 }
-      ];
+      // Get all API keys for this developer
+      const apiKeys = await storage.getApiKeysByDeveloperId(developer.id);
+      
+      if (!apiKeys || apiKeys.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get all websites associated with this developer's API keys
+      const apiKeyIds = apiKeys.map(key => key.id);
+      let websites = [];
+      
+      for (const apiKeyId of apiKeyIds) {
+        const websitesForKey = await storage.getWebsitesByApiKeyId(apiKeyId);
+        websites = websites.concat(websitesForKey);
+      }
+      
+      if (websites.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get all time tracking data for the websites
+      const websiteIds = websites.map(website => website.id);
+      
+      // Create a map to track unique users by month
+      const usersByMonth = new Map();
+      const returningUsersByMonth = new Map();
+      const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      
+      // Initialize the maps for all months
+      monthNames.forEach(month => {
+        usersByMonth.set(month, new Set());
+        returningUsersByMonth.set(month, new Set());
+      });
+      
+      // Track all users we've seen (for returning users calculation)
+      const knownUsers = new Set();
+      
+      // For each website, get time tracking data
+      for (const websiteId of websiteIds) {
+        const timeTrackingData = await storage.getTimeTrackingByWebsiteId(websiteId);
+        
+        // Process each time tracking record
+        for (const record of timeTrackingData) {
+          const date = new Date(record.date);
+          const month = monthNames[date.getMonth()];
+          const userId = record.userId;
+          
+          // Add to users for this month
+          usersByMonth.get(month).add(userId);
+          
+          // If we've seen this user before, add to returning users
+          if (knownUsers.has(userId)) {
+            returningUsersByMonth.get(month).add(userId);
+          }
+          
+          // Add to known users
+          knownUsers.add(userId);
+        }
+      }
+      
+      // Convert the data to the format expected by the client
+      const growthData = monthNames.map(month => {
+        const totalUsers = usersByMonth.get(month).size;
+        const returningUsers = returningUsersByMonth.get(month).size;
+        const newUsers = totalUsers - returningUsers;
+        
+        return {
+          month,
+          new: newUsers,
+          returning: returningUsers
+        };
+      });
+      
+      // If we have no data, provide empty default data to avoid rendering issues
+      if (growthData.every(item => item.new === 0 && item.returning === 0)) {
+        return res.json([]);
+      }
       
       res.json(growthData);
     } catch (error) {
+      console.error("User growth error:", error);
       res.status(500).json({ message: "Failed to retrieve user growth data" });
     }
   });
@@ -417,47 +480,105 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Developer not found" });
       }
       
-      // Mock recent activity data
-      const recentActivities = [
-        {
-          id: 1,
-          user: { name: "John Doe", avatar: "JD", isPremium: true },
-          timeSpent: "32 minutes",
-          page: "/dashboard",
-          date: "Today, 10:45 AM"
-        },
-        {
-          id: 2,
-          user: { name: "Alice Smith", avatar: "AS", isPremium: false },
-          timeSpent: "18 minutes",
-          page: "/features",
-          date: "Today, 9:12 AM"
-        },
-        {
-          id: 3,
-          user: { name: "Robert Johnson", avatar: "RJ", isPremium: true },
-          timeSpent: "45 minutes",
-          page: "/analytics",
-          date: "Yesterday, 4:30 PM"
-        },
-        {
-          id: 4,
-          user: { name: "Emily Davis", avatar: "ED", isPremium: true },
-          timeSpent: "27 minutes",
-          page: "/settings",
-          date: "Yesterday, 2:15 PM"
-        },
-        {
-          id: 5,
-          user: { name: "Michael Brown", avatar: "MB", isPremium: false },
-          timeSpent: "12 minutes",
-          page: "/profile",
-          date: "Yesterday, 10:20 AM"
+      // Get all API keys for this developer
+      const apiKeys = await storage.getApiKeysByDeveloperId(developer.id);
+      
+      if (!apiKeys || apiKeys.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get all websites associated with this developer's API keys
+      const apiKeyIds = apiKeys.map(key => key.id);
+      let websites = [];
+      
+      for (const apiKeyId of apiKeyIds) {
+        const websitesForKey = await storage.getWebsitesByApiKeyId(apiKeyId);
+        websites = websites.concat(websitesForKey);
+      }
+      
+      if (websites.length === 0) {
+        return res.json([]);
+      }
+      
+      // Get time tracking data for all websites
+      const websiteIds = websites.map(website => website.id);
+      const websiteNameMap = new Map(websites.map(website => [website.id, website.name]));
+      
+      // Get all time tracking data and sort by date (most recent first)
+      let allTimeTrackingData = [];
+      
+      for (const websiteId of websiteIds) {
+        const timeTrackingData = await storage.getTimeTrackingByWebsiteId(websiteId);
+        if (timeTrackingData.length > 0) {
+          // Add website info to each record
+          const enhancedData = timeTrackingData.map(record => ({
+            ...record,
+            websiteName: websiteNameMap.get(websiteId) || `Website ${websiteId}`,
+            websiteId
+          }));
+          allTimeTrackingData = allTimeTrackingData.concat(enhancedData);
         }
-      ];
+      }
+      
+      // If we have no data, return empty array
+      if (allTimeTrackingData.length === 0) {
+        return res.json([]);
+      }
+      
+      // Sort by date (most recent first)
+      allTimeTrackingData.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+      
+      // Take the most recent 5 records
+      const recentData = allTimeTrackingData.slice(0, 5);
+      
+      // Format the data for display
+      const recentActivities = recentData.map((record, index) => {
+        // Create initials for avatar
+        const randomNames = [
+          'John Doe', 'Alice Smith', 'Robert Johnson', 'Emily Davis', 
+          'Michael Brown', 'Sarah Wilson', 'David Clark', 'Lisa Martinez',
+          'James Taylor', 'Jennifer Anderson'
+        ];
+        
+        // Use userId to consistently select a name
+        const nameIndex = record.userId % randomNames.length;
+        const name = randomNames[nameIndex];
+        const initials = name.split(' ').map(part => part[0]).join('');
+        
+        // Format the time spent
+        const minutes = Math.round(record.duration / 60);
+        const timeSpent = `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+        
+        // Format the date relative to now
+        const date = new Date(record.date);
+        const now = new Date();
+        const diffDays = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24));
+        
+        let formattedDate;
+        if (diffDays === 0) {
+          formattedDate = `Today, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+        } else if (diffDays === 1) {
+          formattedDate = `Yesterday, ${date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`;
+        } else {
+          formattedDate = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        }
+        
+        return {
+          id: index + 1,
+          user: { 
+            name: name,
+            avatar: initials,
+            isPremium: (record.userId % 2 === 0) // Randomly assign premium status
+          },
+          timeSpent: timeSpent,
+          page: record.path || `/${record.websiteName.toLowerCase().replace(/\s+/g, '-')}`,
+          date: formattedDate
+        };
+      });
       
       res.json(recentActivities);
     } catch (error) {
+      console.error("Recent activity error:", error);
       res.status(500).json({ message: "Failed to retrieve recent activity data" });
     }
   });
