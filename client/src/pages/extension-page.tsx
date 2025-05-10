@@ -5,6 +5,7 @@ import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ExtensionPreview } from "@/components/extension-preview";
+import { BrowserExtensionDownload } from "@/components/browser-extension-download";
 import { Clock, Shield, ChartBar, CreditCard, Globe, Smartphone } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -149,12 +150,10 @@ export default function ExtensionPage() {
               </div>
               
               <div className="text-center lg:text-left">
-                <Button className="bg-neutral-800 hover:bg-neutral-900">
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Download for {activeTab.charAt(0).toUpperCase() + activeTab.slice(1)}
-                </Button>
+                <BrowserExtensionDownload 
+                  browser={activeTab}
+                  className="bg-neutral-800 hover:bg-neutral-900"
+                />
               </div>
             </div>
           </div>
@@ -226,22 +225,26 @@ export default function ExtensionPage() {
             <p className="text-lg mb-8">Download the JagJar extension today and start supporting the developers you love.</p>
             
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              <Button size="lg" className="bg-neutral-800 hover:bg-neutral-900 flex items-center justify-center gap-2">
-                {browserLogos.chrome}
-                Chrome
-              </Button>
-              <Button size="lg" className="bg-neutral-800 hover:bg-neutral-900 flex items-center justify-center gap-2">
-                {browserLogos.firefox}
-                Firefox
-              </Button>
-              <Button size="lg" className="bg-neutral-800 hover:bg-neutral-900 flex items-center justify-center gap-2">
-                {browserLogos.safari}
-                Safari
-              </Button>
-              <Button size="lg" className="bg-neutral-800 hover:bg-neutral-900 flex items-center justify-center gap-2">
-                {browserLogos.edge}
-                Edge
-              </Button>
+              <BrowserExtensionDownload
+                browser="chrome"
+                size="lg"
+                className="bg-neutral-800 hover:bg-neutral-900"
+              />
+              <BrowserExtensionDownload
+                browser="firefox"
+                size="lg"
+                className="bg-neutral-800 hover:bg-neutral-900"
+              />
+              <BrowserExtensionDownload
+                browser="safari"
+                size="lg"
+                className="bg-neutral-800 hover:bg-neutral-900"
+              />
+              <BrowserExtensionDownload
+                browser="edge"
+                size="lg"
+                className="bg-neutral-800 hover:bg-neutral-900"
+              />
             </div>
             
             <Link href="/pricing">
