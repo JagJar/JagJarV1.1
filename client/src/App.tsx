@@ -4,6 +4,7 @@ import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home-page";
 import AuthPage from "@/pages/auth-page";
 import PricingPage from "@/pages/pricing-page";
+import FeaturesPage from "@/pages/features-page";
 import ExtensionPage from "@/pages/extension-page";
 import DevelopersPage from "@/pages/developers-page";
 import { ProtectedRoute } from "./lib/protected-route";
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/" component={HomePage} />
       <Route path="/auth" component={AuthPage} />
       <Route path="/pricing" component={PricingPage} />
+      <Route path="/features" component={FeaturesPage} />
       <Route path="/extension" component={ExtensionPage} />
       <Route path="/developers" component={DevelopersPage} />
       

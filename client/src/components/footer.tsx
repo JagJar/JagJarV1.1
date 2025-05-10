@@ -8,13 +8,11 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
           <div>
             <div className="flex items-center mb-4">
-              <Link href="/">
-                <a className="flex items-center">
-                  <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center mr-2">
-                    <span className="text-white font-bold">J</span>
-                  </div>
-                  <span className="text-xl font-bold">JagJar</span>
-                </a>
+              <Link href="/" className="flex items-center">
+                <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center mr-2">
+                  <span className="text-white font-bold">J</span>
+                </div>
+                <span className="text-xl font-bold">JagJar</span>
               </Link>
             </div>
             <p className="text-neutral-400 mb-4">
@@ -37,24 +35,16 @@ export default function Footer() {
             <h4 className="text-lg font-semibold mb-4">Product</h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/features">
-                  <a className="text-neutral-400 hover:text-white transition-colors">Features</a>
-                </Link>
+                <Link href="/features" className="text-neutral-400 hover:text-white transition-colors">Features</Link>
               </li>
               <li>
-                <Link href="/pricing">
-                  <a className="text-neutral-400 hover:text-white transition-colors">Pricing</a>
-                </Link>
+                <Link href="/pricing" className="text-neutral-400 hover:text-white transition-colors">Pricing</Link>
               </li>
               <li>
-                <Link href="/extension">
-                  <a className="text-neutral-400 hover:text-white transition-colors">Browser Extension</a>
-                </Link>
+                <Link href="/extension" className="text-neutral-400 hover:text-white transition-colors">Browser Extension</Link>
               </li>
               <li>
-                <Link href="/dashboard/integration">
-                  <a className="text-neutral-400 hover:text-white transition-colors">API Documentation</a>
-                </Link>
+                <Link href="/dashboard/integration" className="text-neutral-400 hover:text-white transition-colors">API Documentation</Link>
               </li>
               <li>
                 <a href="#" className="text-neutral-400 hover:text-white transition-colors">Release Notes</a>
@@ -66,9 +56,7 @@ export default function Footer() {
             <h4 className="text-lg font-semibold mb-4">Resources</h4>
             <ul className="space-y-2">
               <li>
-                <Link href="/developers">
-                  <a className="text-neutral-400 hover:text-white transition-colors">Documentation</a>
-                </Link>
+                <Link href="/developers" className="text-neutral-400 hover:text-white transition-colors">Documentation</Link>
               </li>
               <li>
                 <a href="#" className="text-neutral-400 hover:text-white transition-colors">Developer Guide</a>
