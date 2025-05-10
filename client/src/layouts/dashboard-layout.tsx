@@ -1,20 +1,62 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Sidebar, SidebarHeader, SidebarNav, SidebarNavItem, SidebarFooter } from "@/components/ui/sidebar";
 import { Link } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
 import { BarChart3, KeyRound, Code, DollarSign, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { User as SelectUser } from "@shared/schema";
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
 }
 
 export function DashboardLayout({ children }: DashboardLayoutProps) {
-  const { user, logout } = useAuth();
+  const [currentUser, setCurrentUser] = useState<SelectUser | null>(null);
+  
+  // Fetch user data directly in the dashboard
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await fetch('/api/user', {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const user = await response.json();
+          console.log('Fetched user data for dashboard:', user);
+          setCurrentUser(user);
+        } else {
+          console.error('Failed to fetch user data');
+          setCurrentUser(null);
+        }
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        setCurrentUser(null);
+      }
+    };
+    
+    fetchUserData();
+  }, []);
 
   const handleLogout = async () => {
     try {
-      await logout();
+      console.log('Logging out from dashboard...');
+      const response = await fetch('/api/logout', {
+        method: 'POST',
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json'
+        }
+      });
+      
+      if (response.ok) {
+        // Logout successful
+        console.log('Logout successful from dashboard');
+        // Redirect to home page after logout
+        window.location.href = '/';
+      } else {
+        console.error('Logout failed:', response.status);
+      }
     } catch (error) {
       console.error('Logout error:', error);
     }
@@ -62,10 +104,10 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <div className="h-8 w-8 rounded-full bg-primary-100 flex items-center justify-center text-xs font-medium">
-                {user?.username?.charAt(0).toUpperCase() || 'U'}
+                {currentUser?.username?.charAt(0).toUpperCase() || 'U'}
               </div>
               <div className="text-sm font-medium truncate">
-                {user?.username || 'User'}
+                {currentUser?.username || 'User'}
               </div>
             </div>
             <Button 
