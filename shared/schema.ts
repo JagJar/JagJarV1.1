@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, primaryKey } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, primaryKey, decimal, pgEnum } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { relations } from "drizzle-orm";
@@ -111,6 +111,63 @@ export const insertPlanSchema = createInsertSchema(plans).pick({
   description: true,
 });
 
+// Payment status enum
+export const paymentStatusEnum = pgEnum('payment_status', ['pending', 'processing', 'completed', 'failed']);
+
+// Developer payouts model
+export const payouts = pgTable("payouts", {
+  id: serial("id").primaryKey(),
+  developerId: integer("developer_id").notNull().references(() => developers.id),
+  amount: integer("amount").notNull(), // amount in cents
+  status: paymentStatusEnum("status").notNull().default('pending'),
+  paymentMethod: text("payment_method"),
+  referenceId: text("reference_id"), // External payment reference ID
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  processedAt: timestamp("processed_at"),
+  notes: text("notes"),
+});
+
+export const insertPayoutSchema = createInsertSchema(payouts).pick({
+  developerId: true,
+  amount: true,
+  paymentMethod: true,
+  notes: true,
+});
+
+// Revenue sharing settings model
+export const revenueSettings = pgTable("revenue_settings", {
+  id: serial("id").primaryKey(),
+  platformFeePercentage: decimal("platform_fee_percentage", { precision: 5, scale: 2 }).notNull().default('30.00'), // Default 30%
+  minimumPayoutAmount: integer("minimum_payout_amount").notNull().default(1000), // Default $10 (in cents)
+  payoutSchedule: text("payout_schedule").notNull().default('monthly'), // 'monthly', 'weekly', etc.
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+// Revenue distribution logs
+export const revenueDistributionLogs = pgTable("revenue_distribution_logs", {
+  id: serial("id").primaryKey(),
+  month: text("month").notNull(), // format: YYYY-MM
+  totalRevenue: integer("total_revenue").notNull(), // Total revenue collected for the period
+  totalDistributed: integer("total_distributed").notNull(), // Total amount distributed to developers
+  platformFee: integer("platform_fee").notNull(), // Platform fee amount
+  developerCount: integer("developer_count").notNull(), // Number of developers who received payments
+  runAt: timestamp("run_at").defaultNow().notNull(),
+  status: text("status").notNull().default('completed'),
+  notes: text("notes"),
+});
+
+// Developer earnings breakdown by website
+export const developerEarnings = pgTable("developer_earnings", {
+  id: serial("id").primaryKey(),
+  developerId: integer("developer_id").notNull().references(() => developers.id),
+  websiteId: integer("website_id").notNull().references(() => websites.id),
+  month: text("month").notNull(), // format: YYYY-MM
+  totalTime: integer("total_time").notNull(), // Total time in seconds
+  premiumTime: integer("premium_time").notNull(), // Premium user time in seconds
+  earnings: integer("earnings").notNull(), // Amount in cents
+  calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
+});
+
 // Relations
 export const usersRelations = relations(users, ({ one, many }) => ({
   developer: one(developers, {
@@ -127,6 +184,8 @@ export const developersRelations = relations(developers, ({ one, many }) => ({
   }),
   apiKeys: many(apiKeys),
   revenue: many(revenue),
+  payouts: many(payouts),
+  earnings: many(developerEarnings),
 }));
 
 export const apiKeysRelations = relations(apiKeys, ({ one, many }) => ({
@@ -143,6 +202,7 @@ export const websitesRelations = relations(websites, ({ one, many }) => ({
     references: [apiKeys.id],
   }),
   timeTracking: many(timeTracking),
+  earnings: many(developerEarnings),
 }));
 
 export const timeTrackingRelations = relations(timeTracking, ({ one }) => ({
@@ -160,6 +220,24 @@ export const revenueRelations = relations(revenue, ({ one }) => ({
   developer: one(developers, {
     fields: [revenue.developerId],
     references: [developers.id],
+  }),
+}));
+
+export const payoutsRelations = relations(payouts, ({ one }) => ({
+  developer: one(developers, {
+    fields: [payouts.developerId],
+    references: [developers.id],
+  }),
+}));
+
+export const developerEarningsRelations = relations(developerEarnings, ({ one }) => ({
+  developer: one(developers, {
+    fields: [developerEarnings.developerId],
+    references: [developers.id],
+  }),
+  website: one(websites, {
+    fields: [developerEarnings.websiteId],
+    references: [websites.id],
   }),
 }));
 
