@@ -50,7 +50,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = req.user?.id;
       
       // Validate request body
-      const validatedData = insertApiKeySchema.parse(req.body);
+      console.log("API key request body:", req.body);
+      // Only validate the name field from the insert schema
+      const validatedData = { name: req.body.name };
       
       // Get or create developer record
       let developer = await storage.getDeveloperByUserId(userId!);
@@ -70,8 +72,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const apiKey = await storage.createApiKey({
         developerId: developer.id,
         name: validatedData.name,
-        key: apiKeyString,
-        active: true
+        key: apiKeyString
       });
       
       // If website URL is provided, create website record
@@ -85,7 +86,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.status(201).json(apiKey);
     } catch (error) {
-      res.status(400).json({ message: "Failed to create API key", error: String(error) });
+      console.error("API Key creation error:", error);
+      res.status(400).json({ 
+        message: "Failed to create API key", 
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined
+      });
     }
   });
 

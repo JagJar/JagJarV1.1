@@ -121,16 +121,22 @@ export class DatabaseStorage implements IStorage {
 
   // API Key operations
   async createApiKey(apiKey: InsertApiKey & { key: string }): Promise<ApiKey> {
-    const [newApiKey] = await db
-      .insert(apiKeys)
-      .values({
-        developerId: apiKey.developerId,
-        name: apiKey.name,
-        key: apiKey.key,
-        active: true
-      })
-      .returning();
-    return newApiKey;
+    try {
+      console.log("Creating API key with:", apiKey);
+      const [newApiKey] = await db
+        .insert(apiKeys)
+        .values({
+          developerId: apiKey.developerId,
+          name: apiKey.name,
+          key: apiKey.key
+        })
+        .returning();
+      console.log("API key created:", newApiKey);
+      return newApiKey;
+    } catch (error) {
+      console.error("Error in createApiKey:", error);
+      throw error;
+    }
   }
   
   async getApiKey(id: number): Promise<ApiKey | undefined> {
