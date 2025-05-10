@@ -24,18 +24,37 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     <div className="flex h-screen overflow-hidden">
       <Sidebar className="w-64 hidden md:flex">
         <SidebarHeader>
-          <div 
+          <a 
+            href="/" 
             className="flex items-center gap-2 cursor-pointer"
-            onClick={() => {
-              // Use window.location for more reliable navigation with auth state
-              window.location.href = '/';
+            onClick={(e) => {
+              e.preventDefault();
+              
+              // Open home page in same tab but with a method that maintains the session
+              fetch('/', {
+                method: 'GET',
+                credentials: 'include',  // Important: include credentials (cookies)
+                headers: {
+                  'Accept': 'text/html'
+                }
+              })
+                .then(response => {
+                  // Navigate to home page after confirming server responded
+                  console.log('Session pre-fetch success, navigating to home');
+                  window.location.href = '/';
+                })
+                .catch(error => {
+                  console.error('Error fetching homepage:', error);
+                  // Fall back to direct navigation
+                  window.location.href = '/';
+                });
             }}
           >
             <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center">
               <span className="text-white font-bold text-lg">J</span>
             </div>
             <span className="font-bold text-xl">JagJar</span>
-          </div>
+          </a>
         </SidebarHeader>
         <SidebarNav>
           <SidebarNavItem href="/dashboard" icon={BarChart3}>

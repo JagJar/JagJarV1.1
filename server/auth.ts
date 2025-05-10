@@ -37,14 +37,15 @@ export function setupAuth(app: Express) {
   
   const sessionSettings: session.SessionOptions = {
     secret: sessionSecret,
-    resave: false,
-    saveUninitialized: false,
+    resave: true,           // Force session to be saved back to the store
+    saveUninitialized: true, // Save uninitialized sessions
     store: storage.sessionStore,
     cookie: {
       maxAge: 30 * 24 * 60 * 60 * 1000, // 30 days
       secure: isProduction, // In production, cookies are sent only over HTTPS
       httpOnly: true,       // Prevents client-side JavaScript from reading the cookie
-      sameSite: isProduction ? 'strict' : 'lax' // CSRF protection
+      sameSite: 'lax',      // Allows cross-site requests with GET 
+      path: '/'             // Ensure cookie is available across all paths
     }
   };
   
