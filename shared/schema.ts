@@ -35,6 +35,7 @@ export const insertDeveloperSchema = createInsertSchema(developers).pick({
   userId: true,
   companyName: true,
   website: true,
+  paymentDetails: true,
 });
 
 // API Keys model

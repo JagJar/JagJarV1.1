@@ -105,7 +105,8 @@ export class DatabaseStorage implements IStorage {
       .values({
         ...insertUser,
         isSubscribed: false,
-        subscriptionType: "free"
+        subscriptionType: "free",
+        isAdmin: false
       })
       .returning();
     return user;
@@ -127,7 +128,8 @@ export class DatabaseStorage implements IStorage {
       .values({
         ...insertDeveloper,
         companyName: insertDeveloper.companyName || null,
-        website: insertDeveloper.website || null
+        website: insertDeveloper.website || null,
+        paymentDetails: insertDeveloper.paymentDetails || null
       })
       .returning();
     return developer;
@@ -278,9 +280,11 @@ export class DatabaseStorage implements IStorage {
   }
   
   async updatePayoutStatus(id: number, status: string): Promise<any> {
+    // Convert string status to enum value
+    const payoutStatus = status as any; // This is a workaround for the type issue
     const [updatedPayout] = await db
       .update(payouts)
-      .set({ status })
+      .set({ status: payoutStatus })
       .where(eq(payouts.id, id))
       .returning();
     return updatedPayout;
@@ -333,19 +337,22 @@ export class DatabaseStorage implements IStorage {
   }
   
   async getDeveloperEarningsByDeveloperId(developerId: number, month?: string): Promise<any[]> {
-    let query = db
-      .select()
-      .from(developerEarnings)
-      .where(eq(developerEarnings.developerId, developerId));
-      
     if (month) {
-      query = query.where(eq(developerEarnings.month, month));
+      return db
+        .select()
+        .from(developerEarnings)
+        .where(and(
+          eq(developerEarnings.developerId, developerId),
+          eq(developerEarnings.month, month)
+        ))
+        .orderBy(desc(developerEarnings.month));
     }
     
-    return query.orderBy([
-      desc(developerEarnings.month),
-      desc(developerEarnings.earnings)
-    ]);
+    return db
+      .select()
+      .from(developerEarnings)
+      .where(eq(developerEarnings.developerId, developerId))
+      .orderBy(desc(developerEarnings.month));
   }
 }
 
