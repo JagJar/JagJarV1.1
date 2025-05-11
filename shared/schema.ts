@@ -11,6 +11,7 @@ export const users = pgTable("users", {
   email: text("email").notNull().unique(),
   isSubscribed: boolean("is_subscribed").default(false).notNull(),
   subscriptionType: text("subscription_type").default("free").notNull(),
+  isAdmin: boolean("is_admin").default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -26,6 +27,7 @@ export const developers = pgTable("developers", {
   userId: integer("user_id").notNull().references(() => users.id),
   companyName: text("company_name"),
   website: text("website"),
+  paymentDetails: text("payment_details"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -72,6 +74,8 @@ export const timeTracking = pgTable("time_tracking", {
   websiteId: integer("website_id").notNull().references(() => websites.id),
   duration: integer("duration").notNull(), // duration in seconds
   date: timestamp("date").defaultNow().notNull(),
+  path: text("path"),
+  isPremium: boolean("is_premium").default(false),
 });
 
 export const insertTimeTrackingSchema = createInsertSchema(timeTracking).pick({
@@ -86,6 +90,8 @@ export const revenue = pgTable("revenue", {
   developerId: integer("developer_id").notNull().references(() => developers.id),
   amount: integer("amount").notNull(), // amount in cents
   month: text("month").notNull(), // format: YYYY-MM
+  premiumMinutes: integer("premium_minutes"),
+  websitesCount: integer("websites_count"),
   calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
 });
 
@@ -162,9 +168,8 @@ export const developerEarnings = pgTable("developer_earnings", {
   developerId: integer("developer_id").notNull().references(() => developers.id),
   websiteId: integer("website_id").notNull().references(() => websites.id),
   month: text("month").notNull(), // format: YYYY-MM
-  totalTime: integer("total_time").notNull(), // Total time in seconds
-  premiumTime: integer("premium_time").notNull(), // Premium user time in seconds
-  earnings: integer("earnings").notNull(), // Amount in cents
+  amount: integer("amount").notNull(), // Amount in cents
+  premiumMinutes: integer("premium_minutes"), // Premium user time in minutes
   calculatedAt: timestamp("calculated_at").defaultNow().notNull(),
 });
 
