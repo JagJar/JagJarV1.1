@@ -15,6 +15,7 @@ import Integration from "@/pages/dashboard/integration";
 import Earnings from "@/pages/dashboard/earnings";
 import RevenuePage from "@/pages/dashboard/revenue-page";
 import Settings from "@/pages/dashboard/settings";
+import AdminDashboard from "@/pages/dashboard/admin"; // Import the admin dashboard
 
 function Router() {
   return (
@@ -33,6 +34,7 @@ function Router() {
       <ProtectedRoute path="/dashboard/earnings" component={Earnings} />
       <ProtectedRoute path="/dashboard/revenue" component={RevenuePage} />
       <ProtectedRoute path="/dashboard/settings" component={Settings} />
+      <ProtectedRoute path="/dashboard/admin" component={AdminDashboard} />
       
       <Route component={NotFound} />
     </Switch>
