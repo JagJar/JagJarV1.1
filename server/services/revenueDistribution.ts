@@ -18,9 +18,24 @@ import { format, subMonths, parse } from "date-fns";
 interface EarningsResult {
   developerId: number;
   websiteId: number;
+  websiteName: string;
   totalTime: number;
   premiumTime: number;
-  earnings: number;
+  amount: number;          // renamed from earnings for consistency with schema
+  premiumMinutes: number;  // premium time in minutes for reporting
+  percentage: number;      // percentage of total premium time
+  bonusMultiplier: number; // bonus multiplier for high-performing websites
+}
+
+// Type for revenue settings
+interface RevenueSettings {
+  platformFeePercentage: number;
+  developerShare: number;
+  minimumPayoutAmount: number;
+  payoutSchedule: string;
+  premiumSubscriptionPrice: number;
+  highPerformanceBonusThreshold: number; // minutes per month for bonus
+  highPerformanceBonusMultiplier: number; // multiplier for high-performance websites
 }
 
 /**
@@ -42,11 +57,18 @@ export async function calculateMonthlyRevenue(month?: string) {
   const endDate = parse(`${nextMonth}-01`, 'yyyy-MM-dd', new Date());
   
   // Get revenue settings
-  const [settings] = await db.select().from(revenueSettings).limit(1);
+  const [dbSettings] = await db.select().from(revenueSettings).limit(1);
   
   // Default settings if none exist
-  const platformFeePercentage = settings ? Number(settings.platformFeePercentage) : 30;
-  const minimumPayoutAmount = settings?.minimumPayoutAmount || 1000; // $10 in cents
+  const settings: RevenueSettings = {
+    platformFeePercentage: dbSettings?.platformFeePercentage ? Number(dbSettings.platformFeePercentage) : 30,
+    developerShare: dbSettings?.developerShare || 70,
+    minimumPayoutAmount: dbSettings?.minimumPayoutAmount || 1000, // $10 in cents
+    payoutSchedule: dbSettings?.payoutSchedule || 'monthly',
+    premiumSubscriptionPrice: dbSettings?.premiumSubscriptionPrice || 999, // $9.99 in cents
+    highPerformanceBonusThreshold: 3000, // 50 hours in minutes
+    highPerformanceBonusMultiplier: 1.1 // 10% bonus for high-performing websites
+  };
   
   // 1. Calculate total premium user time for the month
   const timeResults = await db
@@ -64,6 +86,7 @@ export async function calculateMonthlyRevenue(month?: string) {
     );
   
   const totalPremiumTime = timeResults[0]?.totalPremiumTime || 0;
+  const totalPremiumMinutes = Math.round(totalPremiumTime / 60); // Convert seconds to minutes
   
   if (totalPremiumTime === 0) {
     // No premium usage this month
@@ -78,9 +101,7 @@ export async function calculateMonthlyRevenue(month?: string) {
     };
   }
   
-  // 2. Get total subscription revenue for the month (simple estimation for now)
-  // In a real system, this would come from actual payment records
-  // Assume $10/month per premium user for now
+  // 2. Get total subscription revenue for the month (from actual premium user count)
   const premiumUserCount = await db
     .select({
       count: count()
@@ -88,8 +109,8 @@ export async function calculateMonthlyRevenue(month?: string) {
     .from(users)
     .where(eq(users.isSubscribed, true));
   
-  const totalRevenue = premiumUserCount[0]?.count * 1000 || 0; // $10.00 in cents
-  const platformFeeAmount = Math.floor(totalRevenue * (Number(platformFeePercentage) / 100));
+  const totalRevenue = premiumUserCount[0]?.count * settings.premiumSubscriptionPrice || 0;
+  const platformFeeAmount = Math.floor(totalRevenue * (settings.platformFeePercentage / 100));
   const distributableAmount = totalRevenue - platformFeeAmount;
   
   // 3. Calculate time spent on each developer's websites by premium users
@@ -97,6 +118,7 @@ export async function calculateMonthlyRevenue(month?: string) {
     .select({
       developerId: developers.id,
       websiteId: websites.id,
+      websiteName: websites.name,
       totalTime: sum(timeTracking.duration).mapWith(Number),
     })
     .from(timeTracking)
@@ -111,19 +133,34 @@ export async function calculateMonthlyRevenue(month?: string) {
         eq(users.isSubscribed, true)
       )
     )
-    .groupBy(developers.id, websites.id);
+    .groupBy(developers.id, websites.id, websites.name);
   
   // 4. Calculate earnings for each developer based on their proportion of usage
+  // with bonus multipliers for high-performing websites
   const earnings: EarningsResult[] = websiteUsage.map(usage => {
-    const proportion = usage.totalTime / totalPremiumTime;
-    const earnings = Math.floor(distributableAmount * proportion);
+    const premiumTime = usage.totalTime; // All this time is from premium users
+    const premiumMinutes = Math.round(premiumTime / 60); // Convert to minutes
+    const percentage = usage.totalTime / totalPremiumTime;
+    
+    // Apply bonus for high-performing websites
+    const bonusMultiplier = premiumMinutes >= settings.highPerformanceBonusThreshold 
+      ? settings.highPerformanceBonusMultiplier 
+      : 1.0;
+    
+    // Calculate earnings with bonus
+    const baseAmount = Math.floor(distributableAmount * percentage);
+    const amount = Math.floor(baseAmount * bonusMultiplier);
     
     return {
       developerId: usage.developerId,
       websiteId: usage.websiteId,
+      websiteName: usage.websiteName,
       totalTime: usage.totalTime,
-      premiumTime: usage.totalTime, // All this time is from premium users
-      earnings: earnings
+      premiumTime: premiumTime,
+      amount: amount,
+      premiumMinutes: premiumMinutes,
+      percentage: percentage,
+      bonusMultiplier: bonusMultiplier
     };
   });
 
@@ -133,34 +170,72 @@ export async function calculateMonthlyRevenue(month?: string) {
       developerId: earning.developerId,
       websiteId: earning.websiteId,
       month: month,
-      totalTime: earning.totalTime,
-      premiumTime: earning.premiumTime,
-      earnings: earning.earnings,
+      amount: earning.amount,
+      premiumMinutes: earning.premiumMinutes,
+      calculatedAt: new Date()
     });
   }
   
   // 6. Aggregate earnings by developer
   const developerTotals = earnings.reduce((acc, curr) => {
-    acc[curr.developerId] = (acc[curr.developerId] || 0) + curr.earnings;
+    if (!acc[curr.developerId]) {
+      acc[curr.developerId] = {
+        amount: 0,
+        premiumMinutes: 0,
+        websitesCount: 0
+      };
+    }
+    acc[curr.developerId].amount += curr.amount;
+    acc[curr.developerId].premiumMinutes += curr.premiumMinutes;
+    acc[curr.developerId].websitesCount++;
     return acc;
-  }, {} as Record<number, number>);
+  }, {} as Record<number, { amount: number, premiumMinutes: number, websitesCount: number }>);
   
-  // 7. Store total revenue for each developer
-  for (const [developerId, amount] of Object.entries(developerTotals)) {
+  // 7. Store total revenue for each developer and create payout records
+  for (const [developerId, data] of Object.entries(developerTotals)) {
+    const devId = parseInt(developerId);
+    
+    // Store total revenue
     await db.insert(revenue).values({
-      developerId: parseInt(developerId),
-      amount: amount,
+      developerId: devId,
+      amount: data.amount,
       month: month,
+      premiumMinutes: data.premiumMinutes,
+      websitesCount: data.websitesCount,
+      calculatedAt: new Date()
     });
     
+    // Get developer payment details
+    const [developer] = await db
+      .select({
+        paymentDetails: developers.paymentDetails
+      })
+      .from(developers)
+      .where(eq(developers.id, devId));
+    
+    // Determine default payment method from developer preferences
+    let defaultPaymentMethod = 'bank_transfer';
+    if (developer?.paymentDetails) {
+      try {
+        const paymentDetails = JSON.parse(developer.paymentDetails as string);
+        if (paymentDetails.paypal) {
+          defaultPaymentMethod = 'paypal';
+        }
+      } catch (err) {
+        console.error("Failed to parse payment details:", err);
+      }
+    }
+    
     // Create a payout record if amount is above minimum threshold
-    if (amount >= minimumPayoutAmount) {
+    if (data.amount >= settings.minimumPayoutAmount) {
       await db.insert(payouts).values({
-        developerId: parseInt(developerId),
-        amount: amount,
+        developerId: devId,
+        amount: data.amount,
+        month: month,
         status: 'pending',
-        paymentMethod: 'bank_transfer', // Default method
+        paymentMethod: defaultPaymentMethod,
         notes: `Automatic payout for ${month}`,
+        createdAt: new Date()
       });
     }
   }
@@ -174,6 +249,7 @@ export async function calculateMonthlyRevenue(month?: string) {
     developerCount: Object.keys(developerTotals).length,
     status: 'completed',
     notes: `Processed on ${new Date().toISOString()}`,
+    runAt: new Date()
   }).returning();
   
   return distributionLog;
@@ -191,6 +267,8 @@ export async function getDeveloperEarnings(developerId: number, limit = 12) {
     .select({
       month: revenue.month,
       amount: revenue.amount,
+      premiumMinutes: revenue.premiumMinutes,
+      websitesCount: revenue.websitesCount,
       calculatedAt: revenue.calculatedAt,
     })
     .from(revenue)
@@ -212,9 +290,9 @@ export async function getDeveloperEarningsDetails(developerId: number, month: st
       websiteId: developerEarnings.websiteId,
       websiteName: websites.name,
       websiteUrl: websites.url,
-      totalTime: developerEarnings.totalTime,
-      premiumTime: developerEarnings.premiumTime,
-      earnings: developerEarnings.earnings,
+      premiumMinutes: developerEarnings.premiumMinutes,
+      amount: developerEarnings.amount,
+      calculatedAt: developerEarnings.calculatedAt
     })
     .from(developerEarnings)
     .innerJoin(websites, eq(developerEarnings.websiteId, websites.id))
@@ -224,7 +302,7 @@ export async function getDeveloperEarningsDetails(developerId: number, month: st
         eq(developerEarnings.month, month)
       )
     )
-    .orderBy(desc(developerEarnings.earnings));
+    .orderBy(desc(developerEarnings.amount));
 }
 
 /**
@@ -270,6 +348,10 @@ export async function getTopEarningDevelopers(month: string, limit = 10) {
       developerId: revenue.developerId,
       developerName: developers.companyName,
       amount: revenue.amount,
+      premiumMinutes: revenue.premiumMinutes,
+      websitesCount: revenue.websitesCount,
+      paymentDetails: developers.paymentDetails,
+      calculatedAt: revenue.calculatedAt
     })
     .from(revenue)
     .innerJoin(developers, eq(revenue.developerId, developers.id))
@@ -284,12 +366,20 @@ export async function getTopEarningDevelopers(month: string, limit = 10) {
  * @returns Current revenue settings
  */
 export async function getRevenueSettings() {
-  const [settings] = await db.select().from(revenueSettings).limit(1);
-  return settings || {
-    platformFeePercentage: 30.00,
-    minimumPayoutAmount: 1000,
-    payoutSchedule: 'monthly',
+  const [dbSettings] = await db.select().from(revenueSettings).limit(1);
+  
+  // Construct a complete settings object with defaults for missing values
+  const settings: RevenueSettings = {
+    platformFeePercentage: dbSettings?.platformFeePercentage ? Number(dbSettings.platformFeePercentage) : 30,
+    developerShare: 70, // Calculated as 100 - platformFeePercentage
+    minimumPayoutAmount: dbSettings?.minimumPayoutAmount || 1000, // $10 in cents
+    payoutSchedule: dbSettings?.payoutSchedule || 'monthly',
+    premiumSubscriptionPrice: 999, // $9.99 in cents
+    highPerformanceBonusThreshold: 3000, // 50 hours in minutes
+    highPerformanceBonusMultiplier: 1.1 // 10% bonus for high-performing websites
   };
+  
+  return settings;
 }
 
 /**
@@ -301,13 +391,18 @@ export async function getRevenueSettings() {
 export async function updateRevenueSettings(newSettings: Partial<typeof revenueSettings.$inferInsert>) {
   const [existingSettings] = await db.select().from(revenueSettings).limit(1);
   
+  // Make sure we're only using fields that exist in the actual database schema
+  const validSettings = {
+    platformFeePercentage: newSettings.platformFeePercentage,
+    minimumPayoutAmount: newSettings.minimumPayoutAmount,
+    payoutSchedule: newSettings.payoutSchedule,
+    updatedAt: new Date()
+  };
+  
   if (existingSettings) {
     const [updated] = await db
       .update(revenueSettings)
-      .set({
-        ...newSettings,
-        updatedAt: new Date(),
-      })
+      .set(validSettings)
       .where(eq(revenueSettings.id, existingSettings.id))
       .returning();
     
@@ -315,10 +410,7 @@ export async function updateRevenueSettings(newSettings: Partial<typeof revenueS
   } else {
     const [created] = await db
       .insert(revenueSettings)
-      .values({
-        ...newSettings,
-        updatedAt: new Date(),
-      })
+      .values(validSettings)
       .returning();
     
     return created;
