@@ -145,8 +145,12 @@ export const insertPayoutSchema = createInsertSchema(payouts).pick({
 export const revenueSettings = pgTable("revenue_settings", {
   id: serial("id").primaryKey(),
   platformFeePercentage: decimal("platform_fee_percentage", { precision: 5, scale: 2 }).notNull().default('30.00'), // Default 30%
+  developerShare: decimal("developer_share", { precision: 5, scale: 2 }).notNull().default('70.00'), // Default 70%
   minimumPayoutAmount: integer("minimum_payout_amount").notNull().default(1000), // Default $10 (in cents)
   payoutSchedule: text("payout_schedule").notNull().default('monthly'), // 'monthly', 'weekly', etc.
+  premiumSubscriptionPrice: integer("premium_subscription_price").notNull().default(999), // Default $9.99 (in cents)
+  highPerformanceBonusThreshold: integer("high_performance_bonus_threshold").notNull().default(10000), // Minutes per month
+  highPerformanceBonusMultiplier: decimal("high_performance_bonus_multiplier", { precision: 4, scale: 2 }).notNull().default('1.25'), // Default 1.25x
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
@@ -268,3 +272,15 @@ export type InsertRevenue = z.infer<typeof insertRevenueSchema>;
 
 export type Plan = typeof plans.$inferSelect;
 export type InsertPlan = z.infer<typeof insertPlanSchema>;
+
+export type RevenueSettings = typeof revenueSettings.$inferSelect;
+export const insertRevenueSettingsSchema = createInsertSchema(revenueSettings).pick({
+  platformFeePercentage: true,
+  developerShare: true,
+  minimumPayoutAmount: true,
+  payoutSchedule: true,
+  premiumSubscriptionPrice: true,
+  highPerformanceBonusThreshold: true,
+  highPerformanceBonusMultiplier: true,
+});
+export type InsertRevenueSettings = z.infer<typeof insertRevenueSettingsSchema>;

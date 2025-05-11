@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Sidebar, SidebarHeader, SidebarNav, SidebarNavItem, SidebarFooter } from "@/components/ui/sidebar";
 import { Link, useLocation } from "wouter";
-import { BarChart3, KeyRound, Code, DollarSign, Settings, LogOut, LineChart, Wallet } from "lucide-react";
+import { BarChart3, KeyRound, Code, DollarSign, Settings, LogOut, LineChart, Wallet, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { User as SelectUser } from "@shared/schema";
 import { useToast } from "@/hooks/use-toast";
@@ -131,6 +131,11 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           <SidebarNavItem href="/dashboard/settings" icon={Settings}>
             Settings
           </SidebarNavItem>
+          {currentUser?.isAdmin && (
+            <SidebarNavItem href="/dashboard/admin" icon={ShieldCheck}>
+              Admin
+            </SidebarNavItem>
+          )}
         </SidebarNav>
         <SidebarFooter>
           <div className="flex items-center justify-between">
