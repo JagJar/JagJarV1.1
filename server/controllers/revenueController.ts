@@ -107,9 +107,8 @@ export const calculateRevenue = async (req: Request, res: Response) => {
     return res.status(401).json({ error: "Unauthorized" });
   }
 
-  // Check if user is an admin (implement proper admin check in a real system)
-  // This is a simplified check assuming admin has a specific ID
-  if (req.user.id !== 1) {
+  // Check if user is an admin using the isAdmin property
+  if (!req.user.isAdmin) {
     return res.status(403).json({ error: "Forbidden: Admin access required" });
   }
 
