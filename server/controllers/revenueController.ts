@@ -174,18 +174,26 @@ export const updateRevenueSettings = async (req: Request, res: Response) => {
 
   const schema = z.object({
     platformFeePercentage: z.number().min(0).max(100).optional(),
+    developerShare: z.number().min(0).max(100).optional(),
     minimumPayoutAmount: z.number().min(0).optional(),
     payoutSchedule: z.enum(['weekly', 'biweekly', 'monthly']).optional(),
+    premiumSubscriptionPrice: z.number().min(0).optional(),
+    highPerformanceBonusThreshold: z.number().min(0).optional(),
+    highPerformanceBonusMultiplier: z.number().min(1).optional(),
   });
 
   try {
     const validatedData = schema.parse(req.body);
     
-    // Convert number to string for platformFeePercentage if it exists
+    // Prepare all the validated settings
     const newSettings: Partial<typeof revenueSettings.$inferInsert> = {
       ...(validatedData.minimumPayoutAmount !== undefined && { minimumPayoutAmount: validatedData.minimumPayoutAmount }),
       ...(validatedData.payoutSchedule !== undefined && { payoutSchedule: validatedData.payoutSchedule }),
       ...(validatedData.platformFeePercentage !== undefined && { platformFeePercentage: validatedData.platformFeePercentage.toString() }),
+      ...(validatedData.developerShare !== undefined && { developerShare: validatedData.developerShare }),
+      ...(validatedData.premiumSubscriptionPrice !== undefined && { premiumSubscriptionPrice: validatedData.premiumSubscriptionPrice }),
+      ...(validatedData.highPerformanceBonusThreshold !== undefined && { highPerformanceBonusThreshold: validatedData.highPerformanceBonusThreshold }),
+      ...(validatedData.highPerformanceBonusMultiplier !== undefined && { highPerformanceBonusMultiplier: validatedData.highPerformanceBonusMultiplier.toString() }),
     };
     
     // Update settings

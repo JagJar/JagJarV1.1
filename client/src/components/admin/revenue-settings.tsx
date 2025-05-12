@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   Card,
@@ -84,11 +84,11 @@ export default function RevenueSettings() {
   });
 
   // Reset form when settings are loaded
-  useState(() => {
+  useEffect(() => {
     if (settings) {
       form.reset(settings);
     }
-  });
+  }, [settings, form]);
 
   // Mutation for updating settings
   const updateSettingsMutation = useMutation({

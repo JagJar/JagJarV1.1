@@ -153,6 +153,8 @@ export const revenueSettings = pgTable("revenue_settings", {
   platformFee: integer("platform_fee").default(30), // Default 30%
   payoutThreshold: integer("payout_threshold").default(5000), // Default $50 (in cents)
   payoutDay: integer("payout_day").default(15), // Default 15th of the month
+  highPerformanceBonusThreshold: integer("high_performance_bonus_threshold").default(120), // Default 120 minutes
+  highPerformanceBonusMultiplier: decimal("high_performance_bonus_multiplier", { precision: 3, scale: 1 }).default('1.5'), // Default 1.5x
 });
 
 // Revenue distribution logs

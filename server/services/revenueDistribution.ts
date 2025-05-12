@@ -371,12 +371,12 @@ export async function getRevenueSettings() {
   // Construct a complete settings object with defaults for missing values
   const settings: RevenueSettings = {
     platformFeePercentage: dbSettings?.platformFeePercentage ? Number(dbSettings.platformFeePercentage) : 30,
-    developerShare: 70, // Calculated as 100 - platformFeePercentage
+    developerShare: dbSettings?.developerShare || 70,
     minimumPayoutAmount: dbSettings?.minimumPayoutAmount || 1000, // $10 in cents
     payoutSchedule: dbSettings?.payoutSchedule || 'monthly',
-    premiumSubscriptionPrice: 999, // $9.99 in cents
-    highPerformanceBonusThreshold: 3000, // 50 hours in minutes
-    highPerformanceBonusMultiplier: 1.1 // 10% bonus for high-performing websites
+    premiumSubscriptionPrice: dbSettings?.premiumSubscriptionPrice || 999, // $9.99 in cents
+    highPerformanceBonusThreshold: dbSettings?.highPerformanceBonusThreshold || 120, // 2 hours in minutes
+    highPerformanceBonusMultiplier: dbSettings?.highPerformanceBonusMultiplier ? Number(dbSettings.highPerformanceBonusMultiplier) : 1.5
   };
   
   return settings;
@@ -391,11 +391,15 @@ export async function getRevenueSettings() {
 export async function updateRevenueSettings(newSettings: Partial<typeof revenueSettings.$inferInsert>) {
   const [existingSettings] = await db.select().from(revenueSettings).limit(1);
   
-  // Make sure we're only using fields that exist in the actual database schema
+  // Include all possible settings fields from the schema
   const validSettings = {
     platformFeePercentage: newSettings.platformFeePercentage,
     minimumPayoutAmount: newSettings.minimumPayoutAmount,
     payoutSchedule: newSettings.payoutSchedule,
+    developerShare: newSettings.developerShare,
+    premiumSubscriptionPrice: newSettings.premiumSubscriptionPrice,
+    highPerformanceBonusThreshold: newSettings.highPerformanceBonusThreshold, 
+    highPerformanceBonusMultiplier: newSettings.highPerformanceBonusMultiplier,
     updatedAt: new Date()
   };
   
