@@ -52,9 +52,9 @@ export default function RevenueSettings() {
 
   // Fetch current settings
   const { data: settings, isLoading: isLoadingSettings } = useQuery({
-    queryKey: ["/api/admin/revenue-settings"],
+    queryKey: ["/api/admin/revenue/settings"],
     queryFn: async () => {
-      const response = await fetch("/api/admin/revenue-settings", {
+      const response = await fetch("/api/admin/revenue/settings", {
         credentials: "include",
       });
       
@@ -93,7 +93,7 @@ export default function RevenueSettings() {
   // Mutation for updating settings
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: RevenueSettingsFormValues) => {
-      const response = await apiRequest("POST", "/api/admin/revenue-settings", data);
+      const response = await apiRequest("PUT", "/api/admin/revenue/settings", data);
       return await response.json();
     },
     onSuccess: () => {
@@ -101,7 +101,7 @@ export default function RevenueSettings() {
         title: "Settings updated",
         description: "Revenue settings have been successfully updated.",
       });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/revenue-settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/revenue/settings"] });
     },
     onError: (error: Error) => {
       toast({

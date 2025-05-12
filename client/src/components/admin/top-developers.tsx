@@ -54,9 +54,9 @@ export default function TopDevelopers() {
 
   // Fetch top developers
   const { data: topDevelopers, isLoading } = useQuery<TopDeveloper[]>({
-    queryKey: ["/api/admin/top-developers", selectedMonth],
+    queryKey: ["/api/admin/revenue/top-developers", selectedMonth],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/top-developers?month=${selectedMonth}`, {
+      const response = await fetch(`/api/admin/revenue/top-developers/${selectedMonth}`, {
         credentials: "include",
       });
       

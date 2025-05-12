@@ -69,9 +69,9 @@ export default function PlatformStats() {
     data: revenueData, 
     isLoading: isLoadingRevenue 
   } = useQuery<RevenueData>({
-    queryKey: ["/api/admin/revenue-stats", statsTimeframe],
+    queryKey: ["/api/admin/revenue/stats", statsTimeframe],
     queryFn: async () => {
-      const response = await fetch(`/api/admin/revenue-stats?timeframe=${statsTimeframe}`, {
+      const response = await fetch(`/api/admin/revenue/stats?timeframe=${statsTimeframe}`, {
         credentials: "include",
       });
       

@@ -47,7 +47,7 @@ export default function RevenueTrigger() {
     mutationFn: async (month: string) => {
       const response = await apiRequest(
         "POST",
-        "/api/admin/calculate-revenue",
+        "/api/admin/revenue/calculate",
         { month }
       );
       return await response.json();
