@@ -1,136 +1,177 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CalendarIcon } from "lucide-react";
-import { format, subMonths } from "date-fns";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2 } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 
 export default function TopDevelopers() {
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    // Default to previous month
-    const prevMonth = subMonths(new Date(), 1);
-    return format(prevMonth, "yyyy-MM");
+  const [month, setMonth] = useState(
+    new Date().toISOString().slice(0, 7) // Current month in YYYY-MM format
+  );
+
+  // Generate months for dropdown (12 months back)
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    const monthStr = date.toISOString().slice(0, 7);
+    const label = date.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+    return { value: monthStr, label };
   });
 
-  // Generate last 12 months for dropdown
-  const last12Months = Array.from({ length: 12 }, (_, i) => {
-    const date = subMonths(new Date(), i);
-    return {
-      value: format(date, "yyyy-MM"),
-      label: format(date, "MMMM yyyy"),
-    };
-  });
-
-  // Fetch top earning developers for the selected month
-  const {
-    data: developers,
-    isLoading,
-    error,
-  } = useQuery({
-    queryKey: ["/api/admin/revenue/top-developers", selectedMonth],
+  // Fetch top earning developers
+  const { data: topDevelopers, isLoading } = useQuery({
+    queryKey: ["/api/admin/top-developers", month],
     queryFn: async () => {
-      const res = await fetch(`/api/admin/revenue/top-developers/${selectedMonth}`);
-      if (!res.ok) {
-        throw new Error("Failed to fetch top developers");
-      }
-      return await res.json();
+      const response = await apiRequest(
+        "GET",
+        `/api/admin/top-developers?month=${month}`
+      );
+      return await response.json();
     },
   });
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(value / 100); // Convert cents to dollars
-  };
-
-  // Format time in minutes to a readable format
-  const formatTime = (minutes: number) => {
-    const hours = Math.floor(minutes / 60);
-    const remainingMinutes = minutes % 60;
-    
-    if (hours === 0) {
-      return `${remainingMinutes}m`;
-    } else if (remainingMinutes === 0) {
-      return `${hours}h`;
-    } else {
-      return `${hours}h ${remainingMinutes}m`;
-    }
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center p-6">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center text-destructive">
-        <p>Error loading top developers</p>
-        <p className="text-sm">{error instanceof Error ? error.message : "Unknown error"}</p>
-      </div>
-    );
-  }
-
   return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
+    <div className="space-y-8">
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <CardTitle>Top Earning Developers</CardTitle>
-          <CardDescription>
-            Developers with the highest earnings for the selected month
-          </CardDescription>
+          <h2 className="text-2xl font-bold">Top Earning Developers</h2>
+          <p className="text-muted-foreground">
+            Developers who earned the most revenue in the selected month
+          </p>
         </div>
-        <div className="flex items-center space-x-2">
-          <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[180px]">
+        <div className="w-full md:w-60">
+          <Select
+            value={month}
+            onValueChange={(value) => setMonth(value)}
+          >
+            <SelectTrigger>
               <SelectValue placeholder="Select month" />
             </SelectTrigger>
             <SelectContent>
-              {last12Months.map((month) => (
-                <SelectItem key={month.value} value={month.value}>
-                  {month.label}
+              {months.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </div>
-      </CardHeader>
-      <CardContent>
-        {developers && developers.length > 0 ? (
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Rank</TableHead>
-                <TableHead>Developer</TableHead>
-                <TableHead>Earnings</TableHead>
-                <TableHead>Premium Time</TableHead>
-                <TableHead>Websites</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {developers.map((dev: any, index: number) => (
-                <TableRow key={dev.developerId}>
-                  <TableCell className="font-medium">{index + 1}</TableCell>
-                  <TableCell>{dev.developerName || `Developer ${dev.developerId}`}</TableCell>
-                  <TableCell>{formatCurrency(dev.amount)}</TableCell>
-                  <TableCell>{formatTime(dev.premiumMinutes)}</TableCell>
-                  <TableCell>{dev.websitesCount}</TableCell>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Earnings Breakdown</CardTitle>
+          <CardDescription>
+            Top 10 developers based on premium user engagement time
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {isLoading ? (
+            <div className="flex items-center justify-center py-8">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Rank</TableHead>
+                  <TableHead>Developer</TableHead>
+                  <TableHead>Total Websites</TableHead>
+                  <TableHead>Premium Minutes</TableHead>
+                  <TableHead className="text-right">Earnings</TableHead>
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        ) : (
-          <div className="text-center py-6 text-muted-foreground">
-            No data available for {format(new Date(`${selectedMonth}-01`), "MMMM yyyy")}
+              </TableHeader>
+              <TableBody>
+                {topDevelopers?.length ? (
+                  topDevelopers.map((dev, index) => (
+                    <TableRow key={dev.developerId}>
+                      <TableCell className="font-medium">{index + 1}</TableCell>
+                      <TableCell>
+                        {dev.developerName || `Developer ${dev.developerId}`}
+                      </TableCell>
+                      <TableCell>{dev.websiteCount || 0}</TableCell>
+                      <TableCell>{dev.premiumMinutes?.toLocaleString() || 0}</TableCell>
+                      <TableCell className="text-right">
+                        ${((dev.amount || 0) / 100).toFixed(2)}
+                      </TableCell>
+                    </TableRow>
+                  ))
+                ) : (
+                  <TableRow>
+                    <TableCell
+                      colSpan={5}
+                      className="text-center text-muted-foreground py-8"
+                    >
+                      No data available for this month.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Developer Insights</CardTitle>
+          <CardDescription>
+            Additional metrics about developer performance
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="p-4 bg-card border rounded-lg">
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                Active Developers
+              </h3>
+              <p className="text-2xl font-bold">
+                {topDevelopers?.length || 0}
+              </p>
+            </div>
+            <div className="p-4 bg-card border rounded-lg">
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                Total Premium Minutes
+              </h3>
+              <p className="text-2xl font-bold">
+                {topDevelopers?.reduce((sum, dev) => sum + (dev.premiumMinutes || 0), 0).toLocaleString() || 0}
+              </p>
+            </div>
+            <div className="p-4 bg-card border rounded-lg">
+              <h3 className="text-sm font-medium text-muted-foreground mb-1">
+                Total Earnings
+              </h3>
+              <p className="text-2xl font-bold">
+                ${((topDevelopers?.reduce((sum, dev) => sum + (dev.amount || 0), 0) || 0) / 100).toFixed(2)}
+              </p>
+            </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

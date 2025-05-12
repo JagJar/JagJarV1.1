@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "@/hooks/use-auth";
-import { Redirect, Link } from "wouter";
+import { Redirect, Link, useLocation } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Loader2 } from "lucide-react";
 import RevenueSettings from "@/components/admin/revenue-settings";
@@ -9,10 +8,45 @@ import TopDevelopers from "@/components/admin/top-developers";
 import RevenueTrigger from "@/components/admin/revenue-trigger";
 
 export default function AdminDashboard() {
-  const { user, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState("revenue-settings");
+  const [user, setUser] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [location, navigate] = useLocation();
 
-  // Check if user is admin
+  // Fetch user data for admin check
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch('/api/user', {
+          credentials: 'include'
+        });
+        
+        if (response.ok) {
+          const userData = await response.json();
+          console.log('Admin page - User data:', userData);
+          setUser(userData);
+          
+          // Check if user is admin
+          if (!userData.isAdmin) {
+            console.log('User is not admin, redirecting to dashboard');
+            navigate('/dashboard');
+          }
+        } else {
+          console.log('Not authenticated, redirecting to auth page');
+          navigate('/auth');
+        }
+        setIsLoading(false);
+      } catch (error) {
+        console.error('Error fetching user data:', error);
+        setIsLoading(false);
+        navigate('/auth');
+      }
+    };
+    
+    fetchUser();
+  }, [navigate]);
+
+  // Loading state
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -21,7 +55,7 @@ export default function AdminDashboard() {
     );
   }
 
-  // Redirect non-admin users
+  // Redirect non-admin users (this is a fallback, the useEffect should handle this)
   if (!user?.isAdmin) {
     return <Redirect to="/dashboard" />;
   }

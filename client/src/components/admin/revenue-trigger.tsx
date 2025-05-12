@@ -1,156 +1,199 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Loader2, CalculatorIcon, CheckCircle2, AlertCircle } from "lucide-react";
-import { format, subMonths } from "date-fns";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Loader2, Check, AlertTriangle } from "lucide-react";
+import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { apiRequest, queryClient } from "@/lib/queryClient";
 
 export default function RevenueTrigger() {
   const { toast } = useToast();
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    // Default to previous month
-    const prevMonth = subMonths(new Date(), 1);
-    return format(prevMonth, "yyyy-MM");
-  });
-
-  // Generate last 12 months for dropdown
-  const last12Months = Array.from({ length: 12 }, (_, i) => {
-    const date = subMonths(new Date(), i);
-    return {
-      value: format(date, "yyyy-MM"),
-      label: format(date, "MMMM yyyy"),
-    };
+  const [selectedMonth, setSelectedMonth] = useState(
+    // Default to previous month since you typically calculate after a month ends
+    (() => {
+      const date = new Date();
+      date.setMonth(date.getMonth() - 1);
+      return date.toISOString().slice(0, 7); // YYYY-MM format
+    })()
+  );
+  
+  // Generate months for dropdown (6 months back)
+  const months = Array.from({ length: 6 }, (_, i) => {
+    const date = new Date();
+    date.setMonth(date.getMonth() - i);
+    const monthStr = date.toISOString().slice(0, 7);
+    const label = date.toLocaleDateString("en-US", {
+      month: "long",
+      year: "numeric",
+    });
+    return { value: monthStr, label };
   });
 
   // Mutation for triggering revenue calculation
   const calculateMutation = useMutation({
-    mutationFn: async () => {
-      const res = await apiRequest("POST", "/api/admin/revenue/calculate", { month: selectedMonth });
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to calculate revenue");
-      }
-      return await res.json();
+    mutationFn: async (month: string) => {
+      const response = await apiRequest(
+        "POST",
+        "/api/admin/calculate-revenue",
+        { month }
+      );
+      return await response.json();
     },
     onSuccess: (data) => {
       toast({
-        title: "Revenue calculation complete",
-        description: `Successfully processed ${data.totalDistributed > 0 ? formatCurrency(data.totalDistributed) : 'revenue'} for ${format(new Date(`${selectedMonth}-01`), "MMMM yyyy")}`,
+        title: "Revenue calculation completed",
+        description: `Successfully processed revenue for ${data.month}. ${data.developerCount} developers received payouts.`,
+        variant: "default",
       });
-      // Invalidate relevant queries
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/revenue/stats"] });
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/revenue/top-developers"] });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
-        title: "Calculation failed",
-        description: error instanceof Error ? error.message : "An error occurred",
+        title: "Revenue calculation failed",
+        description: error.message || "An error occurred while calculating revenue",
         variant: "destructive",
       });
     },
   });
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("en-US", {
-      style: "currency",
-      currency: "USD",
-    }).format(value / 100); // Convert cents to dollars
+  // Handle trigger calculation
+  const handleCalculate = () => {
+    if (window.confirm(`Are you sure you want to calculate revenue for ${selectedMonth}? This process cannot be undone.`)) {
+      calculateMutation.mutate(selectedMonth);
+    }
   };
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Calculate Revenue Distribution</CardTitle>
-        <CardDescription>
-          Manually trigger revenue calculations for a specific month
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-6">
-          <div className="flex flex-col space-y-2">
-            <label className="text-sm font-medium">Select Month</label>
-            <div className="flex space-x-4">
-              <Select value={selectedMonth} onValueChange={setSelectedMonth} disabled={calculateMutation.isPending}>
-                <SelectTrigger className="w-[180px]">
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-2xl font-bold">Revenue Calculation</h2>
+        <p className="text-muted-foreground">
+          Trigger the revenue calculation process for a specific month
+        </p>
+      </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Monthly Revenue Calculation</CardTitle>
+          <CardDescription>
+            This will calculate earnings for all developers based on premium usage
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-6">
+          <div className="flex flex-col gap-6 md:flex-row md:items-end">
+            <div className="space-y-2 flex-1">
+              <label className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                Select Month
+              </label>
+              <Select
+                value={selectedMonth}
+                onValueChange={setSelectedMonth}
+                disabled={calculateMutation.isPending}
+              >
+                <SelectTrigger className="w-full md:w-[200px]">
                   <SelectValue placeholder="Select month" />
                 </SelectTrigger>
                 <SelectContent>
-                  {last12Months.map((month) => (
-                    <SelectItem key={month.value} value={month.value}>
-                      {month.label}
+                  {months.map((m) => (
+                    <SelectItem key={m.value} value={m.value}>
+                      {m.label}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-sm text-muted-foreground">
+                Choose the month for which to calculate developer revenue
+              </p>
             </div>
+            <Button
+              onClick={handleCalculate}
+              disabled={calculateMutation.isPending || !selectedMonth}
+              className="md:w-auto"
+              size="lg"
+            >
+              {calculateMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Calculating...
+                </>
+              ) : (
+                <>Calculate Revenue</>
+              )}
+            </Button>
           </div>
 
+          {calculateMutation.isSuccess && (
+            <div className="p-4 border rounded-md bg-green-50 text-green-800 flex items-center">
+              <Check className="h-5 w-5 mr-2" />
+              <div>
+                <p className="font-medium">Revenue calculation completed successfully</p>
+                <p className="text-sm">
+                  The calculation for {calculateMutation.data?.month} has been processed.
+                  {calculateMutation.data?.developerCount} developers received payouts.
+                </p>
+              </div>
+            </div>
+          )}
+
+          {calculateMutation.isError && (
+            <div className="p-4 border rounded-md bg-red-50 text-red-800 flex items-center">
+              <AlertTriangle className="h-5 w-5 mr-2" />
+              <div>
+                <p className="font-medium">Revenue calculation failed</p>
+                <p className="text-sm">
+                  {calculateMutation.error instanceof Error
+                    ? calculateMutation.error.message
+                    : "An unknown error occurred"}
+                </p>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Important Information</CardTitle>
+          <CardDescription>
+            About the revenue calculation process
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
           <div className="space-y-4">
-            <div className="bg-muted p-4 rounded-md">
-              <h4 className="font-medium">What this will do:</h4>
-              <ul className="list-disc pl-5 mt-2 text-sm space-y-1">
-                <li>Calculate total premium user time spent on each website</li>
-                <li>Distribute revenue to developers based on the platform's fee model</li>
-                <li>Create payout records for eligible developers</li>
-                <li>Update all platform analytics</li>
+            <div className="p-4 border rounded-md bg-blue-50 text-blue-800">
+              <h3 className="font-medium mb-1">What happens during calculation?</h3>
+              <ul className="list-disc pl-5 text-sm space-y-1">
+                <li>Premium user engagement time is tallied for each website</li>
+                <li>Revenue is distributed based on engagement time percentages</li>
+                <li>High-performing websites receive bonus multipliers</li>
+                <li>Developer earnings records are created in the database</li>
+                <li>Payout records are prepared for processing</li>
               </ul>
             </div>
-
-            <div className="flex justify-end">
-              <Button
-                onClick={() => calculateMutation.mutate()}
-                disabled={calculateMutation.isPending}
-                className="w-full md:w-auto"
-              >
-                {calculateMutation.isPending ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <CalculatorIcon className="mr-2 h-4 w-4" />
-                    Calculate Revenue
-                  </>
-                )}
-              </Button>
+            
+            <div className="p-4 border rounded-md bg-amber-50 text-amber-800">
+              <h3 className="font-medium mb-1">Warning</h3>
+              <p className="text-sm">
+                This process should only be run once per month. Running it multiple
+                times for the same month may result in duplicate earnings records.
+                Ensure all user activity data has been collected before triggering.
+              </p>
             </div>
-
-            {calculateMutation.isSuccess && (
-              <div className="bg-green-50 border border-green-200 text-green-700 p-4 rounded-md flex items-start">
-                <CheckCircle2 className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
-                <div>
-                  <h4 className="font-medium">Calculation Successful</h4>
-                  <p className="text-sm mt-1">
-                    {calculateMutation.data?.totalRevenue > 0
-                      ? `Distributed ${formatCurrency(calculateMutation.data.totalDistributed)} to ${
-                          calculateMutation.data.developerCount
-                        } developers.`
-                      : "No premium usage recorded for this period."}
-                  </p>
-                </div>
-              </div>
-            )}
-
-            {calculateMutation.isError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 p-4 rounded-md flex items-start">
-                <AlertCircle className="h-5 w-5 text-red-500 mt-0.5 mr-2 flex-shrink-0" />
-                <div>
-                  <h4 className="font-medium">Calculation Failed</h4>
-                  <p className="text-sm mt-1">
-                    {calculateMutation.error instanceof Error
-                      ? calculateMutation.error.message
-                      : "An unknown error occurred."}
-                  </p>
-                </div>
-              </div>
-            )}
           </div>
-        </div>
-      </CardContent>
-    </Card>
+        </CardContent>
+      </Card>
+    </div>
   );
 }

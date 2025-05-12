@@ -15,21 +15,25 @@ export function ProtectedRoute({
   useEffect(() => {
     const checkAuth = async () => {
       try {
+        console.log('Checking auth status...');
         const response = await fetch('/api/user', {
           credentials: 'include'
         });
         
         if (response.ok) {
+          console.log('Auth status response:', response.status);
+          const userData = await response.json();
+          console.log('User is authenticated:', userData);
           setIsAuthenticated(true);
         } else {
           console.log('Not authenticated, redirecting to auth page');
           setIsAuthenticated(false);
-          window.location.href = '/auth';
+          navigate('/auth');
         }
       } catch (error) {
         console.error('Error checking authentication:', error);
         setIsAuthenticated(false);
-        window.location.href = '/auth';
+        navigate('/auth');
       }
     };
     
