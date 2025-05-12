@@ -8,186 +8,392 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import {
-  BarChart,
-  CartesianGrid,
-  XAxis,
-  YAxis,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   Tooltip,
-  Legend,
-  Bar,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
-import { Loader2 } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { Loader2, TrendingUp, TrendingDown, Users, DollarSign, Calendar, HelpCircle } from "lucide-react";
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip as RechartTooltip, Legend, ResponsiveContainer } from "recharts";
 
-// Mock color data for pie chart
-const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#A28DF3"];
+interface RevenueData {
+  totalRevenue: number;
+  platformRevenue: number;
+  developerPayouts: number;
+  monthlyRevenue: Array<{
+    month: string;
+    amount: number;
+  }>;
+}
+
+interface UserData {
+  totalUsers: number;
+  activeUsers: number;
+  premiumUsers: number;
+  conversionRate: number;
+  monthlyActiveUsers: Array<{
+    month: string;
+    count: number;
+  }>;
+}
+
+// Format dollar amounts
+const formatCurrency = (amount: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2
+  }).format(amount / 100);
+};
+
+// Format percentages
+const formatPercent = (value: number) => {
+  return new Intl.NumberFormat('en-US', {
+    style: 'percent',
+    minimumFractionDigits: 1,
+    maximumFractionDigits: 1
+  }).format(value / 100);
+};
 
 export default function PlatformStats() {
-  const [timeframe, setTimeframe] = useState("month");
+  const [statsTimeframe, setStatsTimeframe] = useState("month");
 
-  // Fetch platform revenue stats
-  const { data: revenueStats, isLoading: isLoadingRevenue } = useQuery({
-    queryKey: ["/api/admin/revenue-stats", timeframe],
+  // Revenue stats query
+  const { 
+    data: revenueData, 
+    isLoading: isLoadingRevenue 
+  } = useQuery<RevenueData>({
+    queryKey: ["/api/admin/revenue-stats", statsTimeframe],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/admin/revenue-stats?timeframe=${timeframe}`);
+      const response = await fetch(`/api/admin/revenue-stats?timeframe=${statsTimeframe}`, {
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch revenue stats");
+      }
+      
       return await response.json();
     },
   });
 
-  // Fetch user stats
-  const { data: userStats, isLoading: isLoadingUsers } = useQuery({
-    queryKey: ["/api/admin/user-stats", timeframe],
+  // User stats query
+  const { 
+    data: userData, 
+    isLoading: isLoadingUsers 
+  } = useQuery<UserData>({
+    queryKey: ["/api/admin/user-stats"],
     queryFn: async () => {
-      const response = await apiRequest("GET", `/api/admin/user-stats?timeframe=${timeframe}`);
+      const response = await fetch("/api/admin/user-stats", {
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
+        throw new Error("Failed to fetch user stats");
+      }
+      
       return await response.json();
     },
   });
-
-  const isLoading = isLoadingRevenue || isLoadingUsers;
-
-  // If data is not loaded yet, display loading state
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  // Prepare data for pie chart
-  const pieData = [
-    { name: "Platform Revenue", value: revenueStats?.platformRevenue || 0 },
-    { name: "Developer Payouts", value: revenueStats?.developerPayouts || 0 },
-  ];
 
   return (
     <div className="space-y-8">
       <div>
-        <h2 className="text-2xl font-bold mb-4">Platform Statistics</h2>
-        <p className="text-muted-foreground mb-8">
-          Overview of platform performance, revenue, and user metrics
+        <h2 className="text-2xl font-bold">Platform Statistics</h2>
+        <p className="text-muted-foreground">
+          Overview of platform performance and user metrics
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Total Revenue</CardTitle>
-            <CardDescription>All time platform revenue</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              ${((revenueStats?.totalRevenue || 0) / 100).toFixed(2)}
-            </div>
-          </CardContent>
-        </Card>
+      <Tabs defaultValue="revenue" className="space-y-6">
+        <TabsList>
+          <TabsTrigger value="revenue">Revenue</TabsTrigger>
+          <TabsTrigger value="users">Users</TabsTrigger>
+        </TabsList>
 
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Active Users</CardTitle>
-            <CardDescription>Total active users in the past month</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{userStats?.activeUsers || 0}</div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle>Premium Subscribers</CardTitle>
-            <CardDescription>Current premium subscribers</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {userStats?.premiumUsers || 0}
+        <TabsContent value="revenue" className="space-y-6">
+          {isLoadingRevenue ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          ) : revenueData ? (
+            <>
+              <div className="grid gap-6 md:grid-cols-3">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Total Revenue
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold">
+                        {formatCurrency(revenueData.totalRevenue)}
+                      </div>
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Card>
-          <CardHeader>
-            <CardTitle>Monthly Revenue</CardTitle>
-            <CardDescription>Revenue over the past months</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart
-                  data={revenueStats?.monthlyRevenue || []}
-                  margin={{
-                    top: 20,
-                    right: 30,
-                    left: 20,
-                    bottom: 5,
-                  }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="month" />
-                  <YAxis />
-                  <Tooltip 
-                    formatter={(value: number) => [
-                      `$${(value / 100).toFixed(2)}`,
-                      "Revenue",
-                    ]}
-                  />
-                  <Legend />
-                  <Bar
-                    dataKey="amount"
-                    name="Revenue"
-                    fill="#8884d8"
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Platform Revenue
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold">
+                        {formatCurrency(revenueData.platformRevenue)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {formatPercent(revenueData.platformRevenue / revenueData.totalRevenue * 100)}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Revenue Distribution</CardTitle>
-            <CardDescription>How platform revenue is distributed</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-80">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={true}
-                    label={({ name, percent }) =>
-                      `${name}: ${(percent * 100).toFixed(0)}%`
-                    }
-                    outerRadius={80}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {pieData.map((entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={COLORS[index % COLORS.length]}
-                      />
-                    ))}
-                  </Pie>
-                  <Tooltip 
-                    formatter={(value: number) => [
-                      `$${(value / 100).toFixed(2)}`,
-                      "",
-                    ]}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Developer Payouts
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold">
+                        {formatCurrency(revenueData.developerPayouts)}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {formatPercent(revenueData.developerPayouts / revenueData.totalRevenue * 100)}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Monthly Revenue</CardTitle>
+                  <CardDescription>
+                    Revenue trends over the past year
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart
+                        data={revenueData.monthlyRevenue}
+                        margin={{
+                          top: 5,
+                          right: 30,
+                          left: 20,
+                          bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="month"
+                          tickFormatter={(month) => {
+                            const date = new Date(month);
+                            return date.toLocaleDateString('en-US', { month: 'short' });
+                          }}
+                        />
+                        <YAxis 
+                          tickFormatter={(value) => `$${(value / 100).toFixed(0)}`}
+                        />
+                        <RechartTooltip 
+                          formatter={(value: number) => formatCurrency(value)}
+                          labelFormatter={(month) => {
+                            const date = new Date(month);
+                            return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                          }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="amount" 
+                          name="Revenue"
+                          stroke="#8884d8"
+                          strokeWidth={2}
+                          activeDot={{ r: 8 }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="py-10">
+                <div className="text-center text-muted-foreground">
+                  Failed to load revenue statistics
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+
+        <TabsContent value="users" className="space-y-6">
+          {isLoadingUsers ? (
+            <div className="flex justify-center py-12">
+              <Loader2 className="h-8 w-8 animate-spin text-primary" />
             </div>
-          </CardContent>
-        </Card>
-      </div>
+          ) : userData ? (
+            <>
+              <div className="grid gap-6 md:grid-cols-4">
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Total Users
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold">
+                        {userData.totalUsers.toLocaleString()}
+                      </div>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Active Users
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold">
+                        {userData.activeUsers.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {formatPercent(userData.activeUsers / userData.totalUsers * 100)}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-medium text-muted-foreground">
+                      Premium Users
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold">
+                        {userData.premiumUsers.toLocaleString()}
+                      </div>
+                      <div className="text-sm text-muted-foreground">
+                        {formatPercent(userData.premiumUsers / userData.totalUsers * 100)}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center space-x-1">
+                      <CardTitle className="text-sm font-medium text-muted-foreground">
+                        Conversion Rate
+                      </CardTitle>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <HelpCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            <p className="max-w-xs">
+                              The percentage of active users who have subscribed to a premium plan
+                            </p>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
+                    </div>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="flex items-center justify-between">
+                      <div className="text-2xl font-bold">
+                        {formatPercent(userData.conversionRate)}
+                      </div>
+                      {userData.conversionRate > 35 ? (
+                        <TrendingUp className="h-4 w-4 text-green-500" />
+                      ) : (
+                        <TrendingDown className="h-4 w-4 text-red-500" />
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle>Monthly Active Users</CardTitle>
+                  <CardDescription>
+                    User activity over the past 4 months
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-[300px]">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={userData.monthlyActiveUsers}
+                        margin={{
+                          top: 5,
+                          right: 30,
+                          left: 20,
+                          bottom: 5,
+                        }}
+                      >
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="month"
+                          tickFormatter={(month) => {
+                            const [year, monthNum] = month.split('-');
+                            const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+                            return date.toLocaleDateString('en-US', { month: 'short' });
+                          }}
+                        />
+                        <YAxis />
+                        <RechartTooltip 
+                          formatter={(value: number) => value.toLocaleString()}
+                          labelFormatter={(month) => {
+                            const [year, monthNum] = month.split('-');
+                            const date = new Date(parseInt(year), parseInt(monthNum) - 1);
+                            return date.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                          }}
+                        />
+                        <Bar 
+                          dataKey="count" 
+                          name="Active Users"
+                          fill="#8884d8" 
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </>
+          ) : (
+            <Card>
+              <CardContent className="py-10">
+                <div className="text-center text-muted-foreground">
+                  Failed to load user statistics
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -34,7 +34,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           // If we get a 401, we're not authenticated, redirect to login
           if (response.status === 401) {
             console.log('User not authenticated, redirecting to auth page...');
-            window.location.href = '/auth';
+            navigate('/auth');
           }
           setCurrentUser(null);
         }
@@ -50,7 +50,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
     const interval = setInterval(fetchUserData, 60000); // Check every minute
     
     return () => clearInterval(interval);
-  }, []);
+  }, [navigate]);
 
   const handleLogout = async () => {
     try {
@@ -69,8 +69,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         });
         
         console.log('Logout successful from dashboard');
-        // Redirect to home page after logout with a full page reload
-        window.location.href = '/';
+        // Redirect to home page after logout
+        setCurrentUser(null);
+        navigate('/');
       } else {
         console.error('Logout failed:', response.status);
         toast({
@@ -97,14 +98,7 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
         <SidebarHeader>
           <div
             className="flex items-center gap-2 cursor-pointer"
-            onClick={() => {
-              // Use a direct navigation approach instead but with forced reload
-              const a = document.createElement('a');
-              a.href = '/';
-              a.setAttribute('data-preserve-session', 'true');
-              document.body.appendChild(a);
-              a.click();
-            }}
+            onClick={() => navigate('/')}
           >
             <div className="w-8 h-8 rounded-md gradient-bg flex items-center justify-center">
               <span className="text-white font-bold text-lg">J</span>

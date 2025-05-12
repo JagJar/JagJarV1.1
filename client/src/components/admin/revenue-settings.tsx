@@ -1,169 +1,198 @@
-import { useState, useEffect } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useState } from "react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Separator } from "@/components/ui/separator";
-import { Loader2 } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Slider } from "@/components/ui/slider";
+import { Loader2, Save, RefreshCw } from "lucide-react";
 import { apiRequest, queryClient } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
 
+// Validation schema
 const revenueSettingsSchema = z.object({
-  platformFeePercentage: z.coerce.number().min(0).max(100).default(30),
-  developerShare: z.coerce.number().min(0).max(100).default(70),
-  platformFee: z.coerce.number().min(0).max(100).default(30),
-  minimumPayoutAmount: z.coerce.number().min(0).default(1000),
-  payoutThreshold: z.coerce.number().min(0).default(5000),
-  payoutDay: z.coerce.number().min(1).max(28).default(15),
-  premiumSubscriptionPrice: z.coerce.number().min(0).default(999),
-  payoutSchedule: z.enum(["weekly", "biweekly", "monthly"]).default("monthly"),
+  platformFeePercentage: z.coerce.number().min(1).max(99),
+  developerShare: z.coerce.number().min(1).max(99),
+  minimumPayoutAmount: z.coerce.number().min(100).max(10000),
+  payoutSchedule: z.enum(["weekly", "biweekly", "monthly"]),
+  premiumSubscriptionPrice: z.coerce.number().min(100).max(10000),
+  highPerformanceBonusThreshold: z.coerce.number().min(60).max(10000),
+  highPerformanceBonusMultiplier: z.coerce.number().min(1).max(5),
 });
+
+type RevenueSettingsFormValues = z.infer<typeof revenueSettingsSchema>;
 
 export default function RevenueSettings() {
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch current revenue settings
-  const { data: settings, isLoading, error } = useQuery({
-    queryKey: ["/api/admin/revenue/settings"],
+  // Fetch current settings
+  const { data: settings, isLoading: isLoadingSettings } = useQuery({
+    queryKey: ["/api/admin/revenue-settings"],
     queryFn: async () => {
-      const res = await fetch("/api/admin/revenue/settings");
-      if (!res.ok) {
+      const response = await fetch("/api/admin/revenue-settings", {
+        credentials: "include",
+      });
+      
+      if (!response.ok) {
         throw new Error("Failed to fetch revenue settings");
       }
-      return await res.json();
+      
+      return await response.json();
     },
   });
 
-  // Setup form
-  const form = useForm<z.infer<typeof revenueSettingsSchema>>({
+  // Default values for the form
+  const defaultValues: RevenueSettingsFormValues = {
+    platformFeePercentage: 30,
+    developerShare: 70,
+    minimumPayoutAmount: 1000,
+    payoutSchedule: "monthly",
+    premiumSubscriptionPrice: 499,
+    highPerformanceBonusThreshold: 120,
+    highPerformanceBonusMultiplier: 1.5,
+  };
+
+  // Create form with react-hook-form
+  const form = useForm<RevenueSettingsFormValues>({
     resolver: zodResolver(revenueSettingsSchema),
-    defaultValues: {
-      platformFeePercentage: 30,
-      developerShare: 70,
-      platformFee: 30,
-      minimumPayoutAmount: 1000,
-      payoutThreshold: 5000,
-      payoutDay: 15,
-      premiumSubscriptionPrice: 999,
-      payoutSchedule: "monthly",
-    },
+    defaultValues: settings || defaultValues,
   });
 
-  // Update form values when settings are loaded
-  useEffect(() => {
+  // Reset form when settings are loaded
+  useState(() => {
     if (settings) {
-      form.reset({
-        platformFeePercentage: Number(settings.platformFeePercentage),
-        developerShare: settings.developerShare,
-        platformFee: settings.platformFee,
-        minimumPayoutAmount: settings.minimumPayoutAmount,
-        payoutThreshold: settings.payoutThreshold,
-        payoutDay: settings.payoutDay,
-        premiumSubscriptionPrice: settings.premiumSubscriptionPrice,
-        payoutSchedule: settings.payoutSchedule,
-      });
+      form.reset(settings);
     }
-  }, [settings, form]);
+  });
 
-  // Update settings mutation
-  const updateMutation = useMutation({
-    mutationFn: async (formData: z.infer<typeof revenueSettingsSchema>) => {
-      const res = await apiRequest("PUT", "/api/admin/revenue/settings", formData);
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to update settings");
-      }
-      return await res.json();
+  // Mutation for updating settings
+  const updateSettingsMutation = useMutation({
+    mutationFn: async (data: RevenueSettingsFormValues) => {
+      const response = await apiRequest("POST", "/api/admin/revenue-settings", data);
+      return await response.json();
     },
     onSuccess: () => {
       toast({
         title: "Settings updated",
-        description: "Revenue settings have been updated successfully",
+        description: "Revenue settings have been successfully updated.",
       });
-      // Invalidate the query to refetch settings
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/revenue/settings"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/admin/revenue-settings"] });
     },
-    onError: (error) => {
+    onError: (error: Error) => {
       toast({
         title: "Update failed",
-        description: error instanceof Error ? error.message : "An error occurred",
+        description: error.message || "Failed to update revenue settings.",
         variant: "destructive",
       });
     },
   });
 
   // Form submission handler
-  const onSubmit = (data: z.infer<typeof revenueSettingsSchema>) => {
-    updateMutation.mutate(data);
-  };
-
-  if (isLoading) {
-    return (
-      <div className="flex justify-center p-6">
-        <Loader2 className="h-6 w-6 animate-spin text-primary" />
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="text-center text-destructive">
-        <p>Error loading revenue settings</p>
-        <p className="text-sm">{error instanceof Error ? error.message : "Unknown error"}</p>
-      </div>
-    );
+  function onSubmit(data: RevenueSettingsFormValues) {
+    updateSettingsMutation.mutate(data);
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Revenue Settings</CardTitle>
-        <CardDescription>
-          Configure how revenue is distributed to developers and when payouts occur
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <h3 className="text-lg font-medium mb-4">Platform Revenue</h3>
-                
+    <div className="space-y-8">
+      <div>
+        <h2 className="text-2xl font-bold">Revenue Settings</h2>
+        <p className="text-muted-foreground">
+          Configure platform revenue sharing and payout settings
+        </p>
+      </div>
+
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+          <Card>
+            <CardHeader>
+              <CardTitle>Platform Fee and Revenue Sharing</CardTitle>
+              <CardDescription>
+                Configure how revenue is split between the platform and developers
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="platformFeePercentage"
                   render={({ field }) => (
-                    <FormItem className="mb-4">
+                    <FormItem>
                       <FormLabel>Platform Fee Percentage</FormLabel>
                       <FormControl>
-                        <div className="flex items-center">
-                          <Input type="number" {...field} className="w-24" />
-                          <span className="ml-2">%</span>
+                        <div className="flex items-center space-x-2">
+                          <Slider
+                            value={[field.value]}
+                            min={1}
+                            max={99}
+                            step={1}
+                            onValueChange={(value) => field.onChange(value[0])}
+                            className="flex-1"
+                          />
+                          <Input
+                            type="number"
+                            {...field}
+                            className="w-20"
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                          <span>%</span>
                         </div>
                       </FormControl>
                       <FormDescription>
-                        Fee percentage that JagJar keeps from total revenue
+                        Percentage of revenue retained by the platform
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
+
                 <FormField
                   control={form.control}
                   name="developerShare"
                   render={({ field }) => (
-                    <FormItem className="mb-4">
+                    <FormItem>
                       <FormLabel>Developer Share</FormLabel>
                       <FormControl>
-                        <div className="flex items-center">
-                          <Input type="number" {...field} className="w-24" />
-                          <span className="ml-2">%</span>
+                        <div className="flex items-center space-x-2">
+                          <Slider
+                            value={[field.value]}
+                            min={1}
+                            max={99}
+                            step={1}
+                            onValueChange={(value) => field.onChange(value[0])}
+                            className="flex-1"
+                          />
+                          <Input
+                            type="number"
+                            {...field}
+                            className="w-20"
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                          <span>%</span>
                         </div>
                       </FormControl>
                       <FormDescription>
@@ -173,27 +202,7 @@ export default function RevenueSettings() {
                     </FormItem>
                   )}
                 />
-                
-                <FormField
-                  control={form.control}
-                  name="platformFee"
-                  render={({ field }) => (
-                    <FormItem className="mb-4">
-                      <FormLabel>Platform Fee</FormLabel>
-                      <FormControl>
-                        <div className="flex items-center">
-                          <Input type="number" {...field} className="w-24" />
-                          <span className="ml-2">%</span>
-                        </div>
-                      </FormControl>
-                      <FormDescription>
-                        Platform fee percentage (should match platform fee percentage above)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
+
                 <FormField
                   control={form.control}
                   name="premiumSubscriptionPrice"
@@ -201,116 +210,59 @@ export default function RevenueSettings() {
                     <FormItem>
                       <FormLabel>Premium Subscription Price</FormLabel>
                       <FormControl>
-                        <div className="flex items-center">
-                          <span className="mr-2">$</span>
-                          <Input 
-                            type="number" 
-                            {...field} 
-                            className="w-32"
-                            onChange={(e) => {
-                              // Convert to cents
-                              const value = parseFloat(e.target.value);
-                              field.onChange(Math.round(value * 100));
-                            }}
-                            value={(field.value / 100).toFixed(2)}
+                        <div className="flex items-center space-x-2">
+                          <span>$</span>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
                           />
                         </div>
                       </FormControl>
                       <FormDescription>
-                        Monthly price for premium subscription
+                        Monthly price for premium subscriptions (in cents)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
-              
-              <div>
-                <h3 className="text-lg font-medium mb-4">Payout Settings</h3>
-                
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Payouts Configuration</CardTitle>
+              <CardDescription>
+                Set payout schedules and minimum thresholds
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                 <FormField
                   control={form.control}
                   name="minimumPayoutAmount"
                   render={({ field }) => (
-                    <FormItem className="mb-4">
+                    <FormItem>
                       <FormLabel>Minimum Payout Amount</FormLabel>
                       <FormControl>
-                        <div className="flex items-center">
-                          <span className="mr-2">$</span>
-                          <Input 
-                            type="number" 
-                            {...field} 
-                            className="w-32"
-                            onChange={(e) => {
-                              // Convert to cents
-                              const value = parseFloat(e.target.value);
-                              field.onChange(Math.round(value * 100));
-                            }}
-                            value={(field.value / 100).toFixed(2)}
+                        <div className="flex items-center space-x-2">
+                          <span>$</span>
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
                           />
                         </div>
                       </FormControl>
                       <FormDescription>
-                        Minimum amount required for a developer to receive a payout
+                        Minimum earnings required for payout (in cents)
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
-                
-                <FormField
-                  control={form.control}
-                  name="payoutThreshold"
-                  render={({ field }) => (
-                    <FormItem className="mb-4">
-                      <FormLabel>Payout Threshold</FormLabel>
-                      <FormControl>
-                        <div className="flex items-center">
-                          <span className="mr-2">$</span>
-                          <Input 
-                            type="number" 
-                            {...field} 
-                            className="w-32"
-                            onChange={(e) => {
-                              // Convert to cents
-                              const value = parseFloat(e.target.value);
-                              field.onChange(Math.round(value * 100));
-                            }}
-                            value={(field.value / 100).toFixed(2)}
-                          />
-                        </div>
-                      </FormControl>
-                      <FormDescription>
-                        Earnings must exceed this amount for payout processing
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
-                <FormField
-                  control={form.control}
-                  name="payoutDay"
-                  render={({ field }) => (
-                    <FormItem className="mb-4">
-                      <FormLabel>Payout Day</FormLabel>
-                      <FormControl>
-                        <Input 
-                          type="number" 
-                          {...field} 
-                          className="w-24"
-                          min={1}
-                          max={28}
-                        />
-                      </FormControl>
-                      <FormDescription>
-                        Day of month when payouts are processed (1-28)
-                      </FormDescription>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                
+
                 <FormField
                   control={form.control}
                   name="payoutSchedule"
@@ -320,45 +272,129 @@ export default function RevenueSettings() {
                       <Select
                         onValueChange={field.onChange}
                         defaultValue={field.value}
-                        value={field.value}
                       >
                         <FormControl>
-                          <SelectTrigger className="w-[180px]">
+                          <SelectTrigger>
                             <SelectValue placeholder="Select a schedule" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           <SelectItem value="weekly">Weekly</SelectItem>
-                          <SelectItem value="biweekly">Biweekly</SelectItem>
+                          <SelectItem value="biweekly">Bi-weekly</SelectItem>
                           <SelectItem value="monthly">Monthly</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormDescription>
-                        How frequently payments are distributed to developers
+                        How often payouts are processed
                       </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="flex justify-end mt-8">
-              <Button
-                type="submit"
-                disabled={updateMutation.isPending}
-                className="w-32"
-              >
-                {updateMutation.isPending ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  "Save Changes"
-                )}
-              </Button>
-            </div>
-          </form>
-        </Form>
-      </CardContent>
-    </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Performance Bonuses</CardTitle>
+              <CardDescription>
+                Configure bonuses for high-performing websites
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+                <FormField
+                  control={form.control}
+                  name="highPerformanceBonusThreshold"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>High Performance Threshold</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-2">
+                          <Input
+                            type="number"
+                            {...field}
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                          <span className="text-muted-foreground">minutes</span>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Minutes per month required to qualify for bonus
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="highPerformanceBonusMultiplier"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Bonus Multiplier</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-2">
+                          <Slider
+                            value={[field.value]}
+                            min={1}
+                            max={5}
+                            step={0.1}
+                            onValueChange={(value) => field.onChange(value[0])}
+                            className="flex-1"
+                          />
+                          <Input
+                            type="number"
+                            {...field}
+                            className="w-20"
+                            onChange={(e) => field.onChange(Number(e.target.value))}
+                          />
+                          <span>x</span>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Revenue multiplier for high-performing websites
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-2">
+            <Button
+              type="submit"
+              disabled={updateSettingsMutation.isPending || isLoadingSettings}
+              className="flex-1 sm:flex-initial"
+            >
+              {updateSettingsMutation.isPending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="mr-2 h-4 w-4" />
+                  Save Changes
+                </>
+              )}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => form.reset(settings)}
+              disabled={updateSettingsMutation.isPending || isLoadingSettings}
+              className="flex-1 sm:flex-initial"
+            >
+              <RefreshCw className="mr-2 h-4 w-4" />
+              Reset Changes
+            </Button>
+          </div>
+        </form>
+      </Form>
+    </div>
   );
 }
