@@ -151,8 +151,25 @@ export const getRevenueSettings = async (req: Request, res: Response) => {
   }
 
   try {
-    const settings = await revenueService.getRevenueSettings();
-    res.json(settings);
+    // Get raw settings from database directly
+    const [rawSettings] = await db.select().from(revenueSettings).limit(1);
+    
+    if (!rawSettings) {
+      return res.status(404).json({ error: "Revenue settings not found" });
+    }
+    
+    // Convert to proper types and structure for frontend
+    const formattedSettings = {
+      platformFeePercentage: Number(rawSettings.platformFeePercentage),
+      developerShare: rawSettings.developerShare,
+      minimumPayoutAmount: rawSettings.minimumPayoutAmount,
+      payoutSchedule: rawSettings.payoutSchedule,
+      premiumSubscriptionPrice: rawSettings.premiumSubscriptionPrice,
+      highPerformanceBonusThreshold: rawSettings.highPerformanceBonusThreshold,
+      highPerformanceBonusMultiplier: Number(rawSettings.highPerformanceBonusMultiplier),
+    };
+    
+    res.json(formattedSettings);
   } catch (error) {
     console.error("Error getting revenue settings:", error);
     res.status(500).json({ error: "Failed to get revenue settings" });
@@ -185,8 +202,15 @@ export const updateRevenueSettings = async (req: Request, res: Response) => {
   try {
     const validatedData = schema.parse(req.body);
     
-    // Prepare all the validated settings
-    const newSettings: Partial<typeof revenueSettings.$inferInsert> = {
+    // Get current settings
+    const [currentSettings] = await db.select().from(revenueSettings).limit(1);
+    
+    if (!currentSettings) {
+      return res.status(404).json({ error: "Revenue settings not found" });
+    }
+    
+    // Prepare all the validated settings for direct update
+    const newSettings = {
       ...(validatedData.minimumPayoutAmount !== undefined && { minimumPayoutAmount: validatedData.minimumPayoutAmount }),
       ...(validatedData.payoutSchedule !== undefined && { payoutSchedule: validatedData.payoutSchedule }),
       ...(validatedData.platformFeePercentage !== undefined && { platformFeePercentage: validatedData.platformFeePercentage.toString() }),
@@ -194,12 +218,28 @@ export const updateRevenueSettings = async (req: Request, res: Response) => {
       ...(validatedData.premiumSubscriptionPrice !== undefined && { premiumSubscriptionPrice: validatedData.premiumSubscriptionPrice }),
       ...(validatedData.highPerformanceBonusThreshold !== undefined && { highPerformanceBonusThreshold: validatedData.highPerformanceBonusThreshold }),
       ...(validatedData.highPerformanceBonusMultiplier !== undefined && { highPerformanceBonusMultiplier: validatedData.highPerformanceBonusMultiplier.toString() }),
+      updated_at: new Date()
     };
     
-    // Update settings
-    const result = await revenueService.updateRevenueSettings(newSettings);
+    // Update settings directly in database
+    const [result] = await db
+      .update(revenueSettings)
+      .set(newSettings)
+      .where(eq(revenueSettings.id, currentSettings.id))
+      .returning();
     
-    res.json(result);
+    // Transform the result to the expected frontend format
+    const formattedResult = {
+      platformFeePercentage: Number(result.platformFeePercentage),
+      developerShare: result.developerShare,
+      minimumPayoutAmount: result.minimumPayoutAmount,
+      payoutSchedule: result.payoutSchedule,
+      premiumSubscriptionPrice: result.premiumSubscriptionPrice,
+      highPerformanceBonusThreshold: result.highPerformanceBonusThreshold,
+      highPerformanceBonusMultiplier: Number(result.highPerformanceBonusMultiplier),
+    };
+    
+    res.json(formattedResult);
   } catch (error) {
     console.error("Error updating revenue settings:", error);
     
