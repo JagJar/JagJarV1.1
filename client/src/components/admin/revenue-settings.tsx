@@ -471,8 +471,8 @@ export default function RevenueSettings() {
             <Button
               type="button"
               variant="outline"
-              onClick={() => form.reset(settings)}
-              disabled={updateSettingsMutation.isPending || isLoadingSettings}
+              onClick={() => settings && form.reset(settings)}
+              disabled={isLoading || isLoadingSettings}
               className="flex-1 sm:flex-initial"
             >
               <RefreshCw className="mr-2 h-4 w-4" />
