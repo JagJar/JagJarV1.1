@@ -286,5 +286,7 @@ export const insertRevenueSettingsSchema = createInsertSchema(revenueSettings).p
   platformFee: true,
   payoutThreshold: true,
   payoutDay: true,
+  highPerformanceBonusThreshold: true,
+  highPerformanceBonusMultiplier: true,
 });
 export type InsertRevenueSettings = z.infer<typeof insertRevenueSettingsSchema>;
