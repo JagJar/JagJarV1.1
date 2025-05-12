@@ -2,7 +2,6 @@ import { MainLayout } from "@/layouts/main-layout";
 import HeroSection from "@/components/hero-section";
 import FeaturesSection from "@/components/features-section";
 import { PricingSection } from "@/components/pricing-section";
-import CtaSection from "@/components/cta-section";
 import { Helmet } from "react-helmet";
 
 export default function HomePage() {
@@ -19,7 +18,6 @@ export default function HomePage() {
       <HeroSection />
       <FeaturesSection />
       <PricingSection />
-      <CtaSection />
     </MainLayout>
   );
 }
