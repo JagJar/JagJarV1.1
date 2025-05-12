@@ -62,12 +62,12 @@ export function SidebarNavItem({
   className,
   ...props
 }: SidebarNavItemProps) {
-  const [location] = useLocation();
+  const [location, navigate] = useLocation();
   const isActive = location === href;
 
   const handleNavigation = (e: React.MouseEvent) => {
     e.preventDefault();
-    window.location.href = href;
+    navigate(href);
   };
 
   return (
