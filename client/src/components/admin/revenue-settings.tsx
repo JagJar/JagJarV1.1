@@ -50,21 +50,48 @@ export default function RevenueSettings() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch current settings
-  const { data: settings, isLoading: isLoadingSettings } = useQuery({
-    queryKey: ["/api/admin/revenue/settings"],
-    queryFn: async () => {
-      const response = await fetch("/api/admin/revenue/settings", {
+  // State to hold the settings
+  const [settings, setSettings] = useState<RevenueSettingsFormValues | null>(null);
+  const [isLoadingSettings, setIsLoadingSettings] = useState(true);
+  
+  // Direct fetch function that bypasses react-query
+  const fetchSettings = async () => {
+    try {
+      setIsLoadingSettings(true);
+      console.log("🔄 Directly fetching settings...");
+      
+      const timestamp = new Date().getTime();
+      const response = await fetch(`/api/admin/revenue/settings?_nocache=${timestamp}`, {
         credentials: "include",
+        headers: {
+          'Cache-Control': 'no-cache, no-store',
+          'Pragma': 'no-cache'
+        }
       });
       
       if (!response.ok) {
         throw new Error("Failed to fetch revenue settings");
       }
       
-      return await response.json();
-    },
-  });
+      const data = await response.json();
+      console.log("📥 Received settings data:", data);
+      setSettings(data);
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      toast({
+        title: "Error",
+        description: "Failed to load revenue settings",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoadingSettings(false);
+    }
+  };
+  
+  // Initial fetch on component mount
+  useEffect(() => {
+    fetchSettings();
+  }, []);
 
   // Default values for the form
   const defaultValues: RevenueSettingsFormValues = {
@@ -99,94 +126,81 @@ export default function RevenueSettings() {
     }
   }, [settings, form]);
 
-  // Query to fetch settings with automatic refetch
-  const { refetch } = useQuery({
-    queryKey: ["/api/admin/revenue/settings/status"],
-    queryFn: async () => {
+  // Direct mutation function (replaces react-query mutation)
+  const updateSettings = async (data: RevenueSettingsFormValues) => {
+    try {
+      setIsLoading(true);
+      console.log("🔄 Submitting data directly:", data);
+      
+      // Ensure numeric values
+      const formattedData = {
+        ...data,
+        platformFeePercentage: Number(data.platformFeePercentage),
+        developerShare: Number(data.developerShare),
+        minimumPayoutAmount: Number(data.minimumPayoutAmount),
+        premiumSubscriptionPrice: Number(data.premiumSubscriptionPrice),
+        highPerformanceBonusThreshold: Number(data.highPerformanceBonusThreshold),
+        highPerformanceBonusMultiplier: Number(data.highPerformanceBonusMultiplier),
+      };
+      
+      // Make the API call directly
       const response = await fetch("/api/admin/revenue/settings", {
+        method: "PUT",
         credentials: "include",
-        // Add cache-busting parameter
-        headers: { 'x-nocache': Date.now().toString() }
+        headers: {
+          "Content-Type": "application/json",
+          "Cache-Control": "no-cache, no-store",
+          "Pragma": "no-cache"
+        },
+        body: JSON.stringify(formattedData)
       });
-      if (!response.ok) throw new Error("Failed to fetch revenue settings");
-      return await response.json();
-    },
-    enabled: false, // Only run when we trigger it
-  });
-  
-  // Mutation for updating settings
-  const updateSettingsMutation = useMutation({
-    mutationFn: async (data: RevenueSettingsFormValues) => {
-      console.log("Submitting data:", data);
-      const response = await apiRequest("PUT", "/api/admin/revenue/settings", data);
+      
       if (!response.ok) {
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to update revenue settings");
       }
-      return await response.json();
-    },
-    onSuccess: async (data) => {
-      console.log("Mutation success, received data:", data);
       
+      const responseData = await response.json();
+      console.log("✅ Update successful, received:", responseData);
+      
+      // Show success message
       toast({
         title: "Settings updated",
         description: "Revenue settings have been successfully updated.",
       });
       
-      // Update the query cache with the new data
-      queryClient.setQueryData(["/api/admin/revenue/settings"], data);
+      // Immediately fetch fresh data
+      await fetchSettings();
       
-      // Clear existing cache completely
-      await queryClient.invalidateQueries({ 
-        queryKey: ["/api/admin/revenue/settings"], 
-        refetchType: 'all' 
-      });
-      
-      // Force a refetch with the status query
-      await refetch();
-      
-      // Update the form with the latest data
-      form.reset(data);
-    },
-    onError: (error: Error) => {
-      console.error("Mutation error:", error);
+      return responseData;
+    } catch (error) {
+      console.error("❌ Update error:", error);
       toast({
         title: "Update failed",
-        description: error.message || "Failed to update revenue settings.",
+        description: error instanceof Error ? error.message : "Failed to update revenue settings.",
         variant: "destructive",
       });
-    },
-  });
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   // Form submission handler
-  function onSubmit(data: RevenueSettingsFormValues) {
+  async function onSubmit(data: RevenueSettingsFormValues) {
     console.log("Form submitted with values:", data);
     
-    // Update button text to reflect submission
-    setIsLoading(true);
-    
-    // Convert numeric values for consistency
-    const formattedData = {
-      ...data,
-      platformFeePercentage: Number(data.platformFeePercentage),
-      developerShare: Number(data.developerShare),
-      minimumPayoutAmount: Number(data.minimumPayoutAmount),
-      premiumSubscriptionPrice: Number(data.premiumSubscriptionPrice),
-      highPerformanceBonusThreshold: Number(data.highPerformanceBonusThreshold),
-      highPerformanceBonusMultiplier: Number(data.highPerformanceBonusMultiplier),
-    };
-    
-    updateSettingsMutation.mutate(formattedData, {
-      onSettled: () => {
-        setIsLoading(false);
-        
-        // Force a complete refresh after submission
-        setTimeout(() => {
-          queryClient.invalidateQueries({ queryKey: ["/api/admin/revenue/settings"] });
-          refetch();
-        }, 500);
+    try {
+      // Use our direct update function instead of react-query mutation
+      await updateSettings(data);
+      
+      // Update form with latest data after successful update
+      if (settings) {
+        form.reset(settings);
       }
-    });
+    } catch (error) {
+      console.error("Submit error:", error);
+    }
   }
 
   return (
@@ -439,10 +453,10 @@ export default function RevenueSettings() {
           <div className="flex flex-col gap-4 sm:flex-row sm:gap-2">
             <Button
               type="submit"
-              disabled={updateSettingsMutation.isPending || isLoadingSettings}
+              disabled={isLoading || isLoadingSettings}
               className="flex-1 sm:flex-initial"
             >
-              {updateSettingsMutation.isPending ? (
+              {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Saving...
