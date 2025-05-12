@@ -11,9 +11,9 @@ import {
 
 export default function FeaturesSection() {
   return (
-    <section id="features" className="py-16 bg-white">
+    <section id="features" className="py-12 bg-white">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="text-center mb-16">
+        <div className="text-center mb-12">
           <h2 className="text-3xl md:text-4xl font-bold text-neutral-800 mb-4">How JagJar Works</h2>
           <p className="text-xl text-neutral-600 max-w-2xl mx-auto">
             A simple, fair monetization system for web applications based on actual time spent by users.

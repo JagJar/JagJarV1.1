@@ -3,9 +3,9 @@ import { Twitter, GitPullRequest, Facebook } from "lucide-react";
 
 export default function Footer() {
   return (
-    <footer className="bg-neutral-900 text-white py-12">
+    <footer className="bg-neutral-900 text-white py-8">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
           <div>
             <div className="flex items-center mb-4">
               <Link href="/" className="flex items-center">
@@ -95,7 +95,7 @@ export default function Footer() {
           </div>
         </div>
         
-        <div className="border-t border-neutral-800 pt-8">
+        <div className="border-t border-neutral-800 pt-5">
           <div className="flex flex-col md:flex-row justify-between items-center">
             <div className="text-neutral-400 mb-4 md:mb-0">
               &copy; {new Date().getFullYear()} JagJar. All rights reserved.
