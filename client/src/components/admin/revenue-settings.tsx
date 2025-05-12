@@ -94,14 +94,26 @@ export default function RevenueSettings() {
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: RevenueSettingsFormValues) => {
       const response = await apiRequest("PUT", "/api/admin/revenue/settings", data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update revenue settings");
+      }
       return await response.json();
     },
-    onSuccess: () => {
+    onSuccess: (data) => {
       toast({
         title: "Settings updated",
         description: "Revenue settings have been successfully updated.",
       });
+      
+      // Update the query cache with the new data
+      queryClient.setQueryData(["/api/admin/revenue/settings"], data);
+      
+      // Then invalidate to ensure fresh data on next load
       queryClient.invalidateQueries({ queryKey: ["/api/admin/revenue/settings"] });
+      
+      // Update the form with the latest data
+      form.reset(data);
     },
     onError: (error: Error) => {
       toast({
