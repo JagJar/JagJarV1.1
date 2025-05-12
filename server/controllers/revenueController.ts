@@ -151,8 +151,11 @@ export const getRevenueSettings = async (req: Request, res: Response) => {
   }
 
   try {
+    console.log("🔍 Get revenue settings - Request received");
+    
     // Get raw settings from database directly
     const [rawSettings] = await db.select().from(revenueSettings).limit(1);
+    console.log("📊 Raw settings from database:", rawSettings);
     
     if (!rawSettings) {
       return res.status(404).json({ error: "Revenue settings not found" });
@@ -168,6 +171,8 @@ export const getRevenueSettings = async (req: Request, res: Response) => {
       highPerformanceBonusThreshold: rawSettings.highPerformanceBonusThreshold,
       highPerformanceBonusMultiplier: Number(rawSettings.highPerformanceBonusMultiplier),
     };
+    
+    console.log("🔄 Formatted settings for frontend:", formattedSettings);
     
     res.json(formattedSettings);
   } catch (error) {
@@ -200,10 +205,13 @@ export const updateRevenueSettings = async (req: Request, res: Response) => {
   });
 
   try {
+    console.log("💾 Update revenue settings - Request body:", req.body);
     const validatedData = schema.parse(req.body);
+    console.log("✅ Validated data:", validatedData);
     
     // Get current settings
     const [currentSettings] = await db.select().from(revenueSettings).limit(1);
+    console.log("📊 Current settings:", currentSettings);
     
     if (!currentSettings) {
       return res.status(404).json({ error: "Revenue settings not found" });
@@ -221,12 +229,16 @@ export const updateRevenueSettings = async (req: Request, res: Response) => {
       updated_at: new Date()
     };
     
+    console.log("⚙️ New settings to update:", newSettings);
+    
     // Update settings directly in database
     const [result] = await db
       .update(revenueSettings)
       .set(newSettings)
       .where(eq(revenueSettings.id, currentSettings.id))
       .returning();
+    
+    console.log("📝 Database update result:", result);
     
     // Transform the result to the expected frontend format
     const formattedResult = {
@@ -238,6 +250,8 @@ export const updateRevenueSettings = async (req: Request, res: Response) => {
       highPerformanceBonusThreshold: result.highPerformanceBonusThreshold,
       highPerformanceBonusMultiplier: Number(result.highPerformanceBonusMultiplier),
     };
+    
+    console.log("🔄 Formatted result for frontend:", formattedResult);
     
     res.json(formattedResult);
   } catch (error) {

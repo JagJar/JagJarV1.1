@@ -86,13 +86,38 @@ export default function RevenueSettings() {
   // Reset form when settings are loaded
   useEffect(() => {
     if (settings) {
-      form.reset(settings);
+      console.log("Resetting form with new settings:", settings);
+      form.reset({
+        platformFeePercentage: settings.platformFeePercentage,
+        developerShare: settings.developerShare,
+        minimumPayoutAmount: settings.minimumPayoutAmount,
+        payoutSchedule: settings.payoutSchedule,
+        premiumSubscriptionPrice: settings.premiumSubscriptionPrice,
+        highPerformanceBonusThreshold: settings.highPerformanceBonusThreshold,
+        highPerformanceBonusMultiplier: settings.highPerformanceBonusMultiplier,
+      });
     }
   }, [settings, form]);
 
+  // Query to fetch settings with automatic refetch
+  const { refetch } = useQuery({
+    queryKey: ["/api/admin/revenue/settings/status"],
+    queryFn: async () => {
+      const response = await fetch("/api/admin/revenue/settings", {
+        credentials: "include",
+        // Add cache-busting parameter
+        headers: { 'x-nocache': Date.now().toString() }
+      });
+      if (!response.ok) throw new Error("Failed to fetch revenue settings");
+      return await response.json();
+    },
+    enabled: false, // Only run when we trigger it
+  });
+  
   // Mutation for updating settings
   const updateSettingsMutation = useMutation({
     mutationFn: async (data: RevenueSettingsFormValues) => {
+      console.log("Submitting data:", data);
       const response = await apiRequest("PUT", "/api/admin/revenue/settings", data);
       if (!response.ok) {
         const errorData = await response.json();
@@ -100,7 +125,9 @@ export default function RevenueSettings() {
       }
       return await response.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
+      console.log("Mutation success, received data:", data);
+      
       toast({
         title: "Settings updated",
         description: "Revenue settings have been successfully updated.",
@@ -109,13 +136,20 @@ export default function RevenueSettings() {
       // Update the query cache with the new data
       queryClient.setQueryData(["/api/admin/revenue/settings"], data);
       
-      // Then invalidate to ensure fresh data on next load
-      queryClient.invalidateQueries({ queryKey: ["/api/admin/revenue/settings"] });
+      // Clear existing cache completely
+      await queryClient.invalidateQueries({ 
+        queryKey: ["/api/admin/revenue/settings"], 
+        refetchType: 'all' 
+      });
+      
+      // Force a refetch with the status query
+      await refetch();
       
       // Update the form with the latest data
       form.reset(data);
     },
     onError: (error: Error) => {
+      console.error("Mutation error:", error);
       toast({
         title: "Update failed",
         description: error.message || "Failed to update revenue settings.",
@@ -126,7 +160,33 @@ export default function RevenueSettings() {
 
   // Form submission handler
   function onSubmit(data: RevenueSettingsFormValues) {
-    updateSettingsMutation.mutate(data);
+    console.log("Form submitted with values:", data);
+    
+    // Update button text to reflect submission
+    setIsLoading(true);
+    
+    // Convert numeric values for consistency
+    const formattedData = {
+      ...data,
+      platformFeePercentage: Number(data.platformFeePercentage),
+      developerShare: Number(data.developerShare),
+      minimumPayoutAmount: Number(data.minimumPayoutAmount),
+      premiumSubscriptionPrice: Number(data.premiumSubscriptionPrice),
+      highPerformanceBonusThreshold: Number(data.highPerformanceBonusThreshold),
+      highPerformanceBonusMultiplier: Number(data.highPerformanceBonusMultiplier),
+    };
+    
+    updateSettingsMutation.mutate(formattedData, {
+      onSettled: () => {
+        setIsLoading(false);
+        
+        // Force a complete refresh after submission
+        setTimeout(() => {
+          queryClient.invalidateQueries({ queryKey: ["/api/admin/revenue/settings"] });
+          refetch();
+        }, 500);
+      }
+    });
   }
 
   return (
