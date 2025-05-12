@@ -15,7 +15,12 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 
 const revenueSettingsSchema = z.object({
   platformFeePercentage: z.coerce.number().min(0).max(100).default(30),
+  developerShare: z.coerce.number().min(0).max(100).default(70),
+  platformFee: z.coerce.number().min(0).max(100).default(30),
   minimumPayoutAmount: z.coerce.number().min(0).default(1000),
+  payoutThreshold: z.coerce.number().min(0).default(5000),
+  payoutDay: z.coerce.number().min(1).max(28).default(15),
+  premiumSubscriptionPrice: z.coerce.number().min(0).default(999),
   payoutSchedule: z.enum(["weekly", "biweekly", "monthly"]).default("monthly"),
 });
 
@@ -39,7 +44,12 @@ export default function RevenueSettings() {
     resolver: zodResolver(revenueSettingsSchema),
     defaultValues: {
       platformFeePercentage: 30,
+      developerShare: 70,
+      platformFee: 30,
       minimumPayoutAmount: 1000,
+      payoutThreshold: 5000,
+      payoutDay: 15,
+      premiumSubscriptionPrice: 999,
       payoutSchedule: "monthly",
     },
   });
@@ -49,7 +59,12 @@ export default function RevenueSettings() {
     if (settings) {
       form.reset({
         platformFeePercentage: Number(settings.platformFeePercentage),
+        developerShare: settings.developerShare,
+        platformFee: settings.platformFee,
         minimumPayoutAmount: settings.minimumPayoutAmount,
+        payoutThreshold: settings.payoutThreshold,
+        payoutDay: settings.payoutDay,
+        premiumSubscriptionPrice: settings.premiumSubscriptionPrice,
         payoutSchedule: settings.payoutSchedule,
       });
     }
@@ -115,87 +130,220 @@ export default function RevenueSettings() {
       <CardContent>
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="platformFeePercentage"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Platform Fee Percentage</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center">
-                      <Input type="number" {...field} className="w-24" />
-                      <span className="ml-2">%</span>
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    The percentage of revenue that JagJar keeps as a platform fee. The remaining goes to developers.
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <h3 className="text-lg font-medium mb-4">Platform Revenue</h3>
+                
+                <FormField
+                  control={form.control}
+                  name="platformFeePercentage"
+                  render={({ field }) => (
+                    <FormItem className="mb-4">
+                      <FormLabel>Platform Fee Percentage</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center">
+                          <Input type="number" {...field} className="w-24" />
+                          <span className="ml-2">%</span>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Fee percentage that JagJar keeps from total revenue
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="developerShare"
+                  render={({ field }) => (
+                    <FormItem className="mb-4">
+                      <FormLabel>Developer Share</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center">
+                          <Input type="number" {...field} className="w-24" />
+                          <span className="ml-2">%</span>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Percentage of revenue distributed to developers
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="platformFee"
+                  render={({ field }) => (
+                    <FormItem className="mb-4">
+                      <FormLabel>Platform Fee</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center">
+                          <Input type="number" {...field} className="w-24" />
+                          <span className="ml-2">%</span>
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Platform fee percentage (should match platform fee percentage above)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="premiumSubscriptionPrice"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Premium Subscription Price</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center">
+                          <span className="mr-2">$</span>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            className="w-32"
+                            onChange={(e) => {
+                              // Convert to cents
+                              const value = parseFloat(e.target.value);
+                              field.onChange(Math.round(value * 100));
+                            }}
+                            value={(field.value / 100).toFixed(2)}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Monthly price for premium subscription
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+              
+              <div>
+                <h3 className="text-lg font-medium mb-4">Payout Settings</h3>
+                
+                <FormField
+                  control={form.control}
+                  name="minimumPayoutAmount"
+                  render={({ field }) => (
+                    <FormItem className="mb-4">
+                      <FormLabel>Minimum Payout Amount</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center">
+                          <span className="mr-2">$</span>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            className="w-32"
+                            onChange={(e) => {
+                              // Convert to cents
+                              const value = parseFloat(e.target.value);
+                              field.onChange(Math.round(value * 100));
+                            }}
+                            value={(field.value / 100).toFixed(2)}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Minimum amount required for a developer to receive a payout
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="payoutThreshold"
+                  render={({ field }) => (
+                    <FormItem className="mb-4">
+                      <FormLabel>Payout Threshold</FormLabel>
+                      <FormControl>
+                        <div className="flex items-center">
+                          <span className="mr-2">$</span>
+                          <Input 
+                            type="number" 
+                            {...field} 
+                            className="w-32"
+                            onChange={(e) => {
+                              // Convert to cents
+                              const value = parseFloat(e.target.value);
+                              field.onChange(Math.round(value * 100));
+                            }}
+                            value={(field.value / 100).toFixed(2)}
+                          />
+                        </div>
+                      </FormControl>
+                      <FormDescription>
+                        Earnings must exceed this amount for payout processing
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="payoutDay"
+                  render={({ field }) => (
+                    <FormItem className="mb-4">
+                      <FormLabel>Payout Day</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          {...field} 
+                          className="w-24"
+                          min={1}
+                          max={28}
+                        />
+                      </FormControl>
+                      <FormDescription>
+                        Day of month when payouts are processed (1-28)
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="payoutSchedule"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Payout Schedule</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                        value={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Select a schedule" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="weekly">Weekly</SelectItem>
+                          <SelectItem value="biweekly">Biweekly</SelectItem>
+                          <SelectItem value="monthly">Monthly</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormDescription>
+                        How frequently payments are distributed to developers
+                      </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
 
-            <FormField
-              control={form.control}
-              name="minimumPayoutAmount"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Minimum Payout Amount</FormLabel>
-                  <FormControl>
-                    <div className="flex items-center">
-                      <span className="mr-2">$</span>
-                      <Input 
-                        type="number" 
-                        {...field} 
-                        className="w-32"
-                        onChange={(e) => {
-                          // Convert to cents
-                          const value = parseFloat(e.target.value);
-                          field.onChange(Math.round(value * 100));
-                        }}
-                        value={(field.value / 100).toFixed(2)}
-                      />
-                    </div>
-                  </FormControl>
-                  <FormDescription>
-                    Minimum amount required for a developer to receive a payout
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="payoutSchedule"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Payout Schedule</FormLabel>
-                  <Select
-                    onValueChange={field.onChange}
-                    defaultValue={field.value}
-                    value={field.value}
-                  >
-                    <FormControl>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Select a schedule" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      <SelectItem value="weekly">Weekly</SelectItem>
-                      <SelectItem value="biweekly">Biweekly</SelectItem>
-                      <SelectItem value="monthly">Monthly</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <FormDescription>
-                    How frequently payments are distributed to developers
-                  </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="flex justify-end">
+            <div className="flex justify-end mt-8">
               <Button
                 type="submit"
                 disabled={updateMutation.isPending}

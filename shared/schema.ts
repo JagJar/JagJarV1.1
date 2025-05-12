@@ -145,13 +145,14 @@ export const insertPayoutSchema = createInsertSchema(payouts).pick({
 export const revenueSettings = pgTable("revenue_settings", {
   id: serial("id").primaryKey(),
   platformFeePercentage: decimal("platform_fee_percentage", { precision: 5, scale: 2 }).notNull().default('30.00'), // Default 30%
-  developerShare: decimal("developer_share", { precision: 5, scale: 2 }).notNull().default('70.00'), // Default 70%
   minimumPayoutAmount: integer("minimum_payout_amount").notNull().default(1000), // Default $10 (in cents)
   payoutSchedule: text("payout_schedule").notNull().default('monthly'), // 'monthly', 'weekly', etc.
-  premiumSubscriptionPrice: integer("premium_subscription_price").notNull().default(999), // Default $9.99 (in cents)
-  highPerformanceBonusThreshold: integer("high_performance_bonus_threshold").notNull().default(10000), // Minutes per month
-  highPerformanceBonusMultiplier: decimal("high_performance_bonus_multiplier", { precision: 4, scale: 2 }).notNull().default('1.25'), // Default 1.25x
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  premiumSubscriptionPrice: integer("premium_subscription_price").default(999), // Default $9.99 (in cents)
+  developerShare: integer("developer_share").default(70), // Default 70%
+  platformFee: integer("platform_fee").default(30), // Default 30%
+  payoutThreshold: integer("payout_threshold").default(5000), // Default $50 (in cents)
+  payoutDay: integer("payout_day").default(15), // Default 15th of the month
 });
 
 // Revenue distribution logs
@@ -280,7 +281,8 @@ export const insertRevenueSettingsSchema = createInsertSchema(revenueSettings).p
   minimumPayoutAmount: true,
   payoutSchedule: true,
   premiumSubscriptionPrice: true,
-  highPerformanceBonusThreshold: true,
-  highPerformanceBonusMultiplier: true,
+  platformFee: true,
+  payoutThreshold: true,
+  payoutDay: true,
 });
 export type InsertRevenueSettings = z.infer<typeof insertRevenueSettingsSchema>;
