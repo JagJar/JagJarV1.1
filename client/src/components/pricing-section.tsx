@@ -21,7 +21,7 @@ export function PricingSection() {
             <ul className="space-y-3 mb-8">
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                <span>60 hours/month on JagJar sites</span>
+                <span>10 hours/month on JagJar sites</span>
               </li>
               <li className="flex items-start">
                 <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
@@ -62,7 +62,7 @@ export function PricingSection() {
             <p className="text-neutral-600 mb-6">For frequent web app users</p>
             
             <div className="mb-6">
-              <span className="text-4xl font-bold text-neutral-800">$9.99</span>
+              <span className="text-4xl font-bold text-neutral-800">$19.99</span>
               <span className="text-neutral-500">/month</span>
             </div>
             
