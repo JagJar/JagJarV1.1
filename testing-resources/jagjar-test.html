@@ -82,24 +82,51 @@
       const log = document.getElementById('detection-log');
       log.innerHTML = 'Checking for JagJar extension...';
       
-      // Create a custom event that the extension content script can listen for
-      const checkEvent = new CustomEvent('jagjar_extension_check', {
-        detail: { test: 'detection' }
-      });
-      document.dispatchEvent(checkEvent);
+      // Flag to track if extension was detected
+      let extensionDetected = false;
       
-      // Set up a listener for the response
+      // Try multiple detection methods
+      
+      // Method 1: Custom event with response via window.postMessage
       window.addEventListener('message', function extensionResponseHandler(event) {
         if (event.data && event.data.from === 'jagjar_extension') {
-          log.innerHTML += '<br><span class="success">✓ JagJar extension detected!</span>';
+          log.innerHTML += '<br><span class="success">✓ JagJar extension detected via postMessage!</span>';
+          log.innerHTML += '<br><span class="success">Message: ' + event.data.message + '</span>';
           window.removeEventListener('message', extensionResponseHandler);
+          extensionDetected = true;
         }
       });
       
-      // If no response after 2 seconds, assume extension is not present
+      // Method 2: Custom event with response via another custom event
+      document.addEventListener('jagjar_extension_response', function extensionEventHandler(event) {
+        log.innerHTML += '<br><span class="success">✓ JagJar extension detected via custom event!</span>';
+        log.innerHTML += '<br><span class="success">Extension ID: ' + event.detail.extensionId + '</span>';
+        document.removeEventListener('jagjar_extension_response', extensionEventHandler);
+        extensionDetected = true;
+      }, { once: true });
+      
+      // Send the detection request
+      const checkEvent = new CustomEvent('jagjar_extension_check', {
+        detail: { test: 'detection', url: window.location.href }
+      });
+      document.dispatchEvent(checkEvent);
+      
+      // Method 3: Check for marker element injection (after a short delay)
       setTimeout(() => {
-        if (!log.innerHTML.includes('detected')) {
+        const marker = document.getElementById('jagjar-extension-marker');
+        if (marker) {
+          log.innerHTML += '<br><span class="success">✓ JagJar extension detected via DOM marker!</span>';
+          extensionDetected = true;
+        }
+        
+        // Final check after all methods tried
+        if (!extensionDetected) {
           log.innerHTML += '<br><span class="error">✗ JagJar extension not detected or not responding.</span>';
+          log.innerHTML += '<br><span class="info">Troubleshooting tips:</span>';
+          log.innerHTML += '<br>- Make sure the extension is installed correctly';
+          log.innerHTML += '<br>- Check the browser console for extension errors';
+          log.innerHTML += '<br>- Try opening this page in a new tab/window';
+          log.innerHTML += '<br>- Verify that content scripts are enabled';
         }
       }, 2000);
     });
@@ -142,6 +169,9 @@
       const log = document.getElementById('compatibility-log');
       log.innerHTML = 'Testing browser API compatibility...';
       
+      // Flag to track if API test succeeded
+      let apiTestSucceeded = false;
+      
       // Try to detect the browser
       const userAgent = navigator.userAgent;
       let browserName = "Unknown";
@@ -160,23 +190,49 @@
       
       log.innerHTML += `<br>Detected browser: <strong>${browserName}</strong>`;
       
-      // Create a custom event for browser API testing
-      const apiTestEvent = new CustomEvent('jagjar_api_test', {
-        detail: { browser: browserName }
-      });
-      document.dispatchEvent(apiTestEvent);
-      
-      // Listen for response
+      // Method 1: Listen for response via window.postMessage
       window.addEventListener('message', function apiResponseHandler(event) {
         if (event.data && event.data.from === 'jagjar_api_test_response') {
           log.innerHTML += `<br><span class="success">✓ ${event.data.message || 'Browser API working correctly'}</span>`;
+          if (event.data.browser) {
+            log.innerHTML += `<br><span class="success">Extension identifies itself as: ${event.data.browser}</span>`;
+          }
           window.removeEventListener('message', apiResponseHandler);
+          apiTestSucceeded = true;
         }
       });
       
+      // Method 2: Listen for response via custom event
+      document.addEventListener('jagjar_api_test_result', function apiEventHandler(event) {
+        if (event.detail && event.detail.success) {
+          log.innerHTML += `<br><span class="success">✓ Browser API working correctly via custom event</span>`;
+          if (event.detail.browser) {
+            log.innerHTML += `<br><span class="success">Extension identifies itself as: ${event.detail.browser}</span>`;
+          }
+          document.removeEventListener('jagjar_api_test_result', apiEventHandler);
+          apiTestSucceeded = true;
+        }
+      }, { once: true });
+      
+      // Send the API test request
+      const apiTestEvent = new CustomEvent('jagjar_api_test', {
+        detail: { 
+          browser: browserName,
+          timestamp: Date.now(),
+          userAgent: navigator.userAgent
+        }
+      });
+      document.dispatchEvent(apiTestEvent);
+      
+      // Check results after a delay
       setTimeout(() => {
-        if (!log.innerHTML.includes('Browser API working')) {
-          log.innerHTML += '<br><span class="error">✗ No response from extension API test. This may not be supported yet, but the extension might still work correctly.</span>';
+        if (!apiTestSucceeded) {
+          log.innerHTML += '<br><span class="error">✗ No response from extension API test.</span>';
+          log.innerHTML += '<br><span class="info">Possible reasons:</span>';
+          log.innerHTML += '<br>- Extension is not running or installed correctly';
+          log.innerHTML += '<br>- API tests are not supported in this extension version';
+          log.innerHTML += '<br>- Content script permissions may be limited';
+          log.innerHTML += '<br>- Browser might be blocking extension communication';
         }
       }, 2000);
     });
