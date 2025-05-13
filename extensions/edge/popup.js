@@ -110,12 +110,12 @@ async function checkAuthStatus() {
         if (!response.ok) {
           // Token is invalid, clear user data
           user = null;
-          await chrome.storage.local.remove('user');
+          await browser.storage.local.remove('user');
         } else {
           // Update user data with latest from server
           const userData = await response.json();
           user = { ...user, ...userData };
-          await chrome.storage.local.set({ user });
+          await browser.storage.local.set({ user });
         }
       } catch (error) {
         console.error('Error validating token:', error);
@@ -219,8 +219,8 @@ async function handleLogin(event) {
       const userData = await response.json();
       user = userData;
       
-      // Save user data to chrome storage
-      await chrome.storage.local.set({ user });
+      // Save user data to browser storage
+      await browser.storage.local.set({ user });
       
       await loadUserData();
       showView('loggedIn');
@@ -249,8 +249,8 @@ async function handleLogout() {
       }
     });
     
-    // Clear user data from chrome storage
-    await chrome.storage.local.remove('user');
+    // Clear user data from browser storage
+    await browser.storage.local.remove('user');
     user = null;
     
     showView('loggedOut');
@@ -289,19 +289,19 @@ document.addEventListener('DOMContentLoaded', initializePopup);
 elements.loginForm.addEventListener('submit', handleLogin);
 
 elements.createAccountLink.addEventListener('click', () => {
-  chrome.tabs.create({ url: 'https://jagjar.app/auth' });
+  browser.tabs.create({ url: 'https://jagjar.app/auth' });
 });
 
 elements.forgotPasswordLink.addEventListener('click', () => {
-  chrome.tabs.create({ url: 'https://jagjar.app/reset-password' });
+  browser.tabs.create({ url: 'https://jagjar.app/reset-password' });
 });
 
 elements.viewDashboardBtn.addEventListener('click', () => {
-  chrome.tabs.create({ url: 'https://jagjar.app/dashboard' });
+  browser.tabs.create({ url: 'https://jagjar.app/dashboard' });
 });
 
 elements.upgradeBtn.addEventListener('click', () => {
-  chrome.tabs.create({ url: 'https://jagjar.app/pricing' });
+  browser.tabs.create({ url: 'https://jagjar.app/pricing' });
 });
 
 elements.logoutBtn.addEventListener('click', handleLogout);
