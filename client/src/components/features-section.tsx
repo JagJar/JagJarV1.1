@@ -69,7 +69,7 @@ export default function FeaturesSection() {
                 </li>
                 <li className="flex items-start">
                   <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
-                  <span>Premium for unlimited access ($19.99/mo)</span>
+                  <span>Premium for unlimited access ($25/mo)</span>
                 </li>
                 <li className="flex items-start">
                   <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
