@@ -257,7 +257,7 @@ async function checkAuthStatus() {
 }
 
 function showLimitNotification(limitInfo) {
-  chrome.notifications.create({
+  browser.notifications.create({
     type: 'basic',
     iconUrl: 'icons/icon128.png',
     title: 'JagJar Usage Limit Reached',
@@ -277,11 +277,11 @@ function updateBadge() {
     if (isJagJarEnabledSite[domain]) {
       // Show time spent on this site today
       const minutes = Math.floor((cumulativeTimeSpent[domain] || 0) / 60);
-      chrome.action.setBadgeText({ text: minutes.toString() });
-      chrome.action.setBadgeBackgroundColor({ color: '#4F46E5' });
+      browser.action.setBadgeText({ text: minutes.toString() });
+      browser.action.setBadgeBackgroundColor({ color: '#4F46E5' });
     } else {
       // Not a JagJar site
-      chrome.action.setBadgeText({ text: '' });
+      browser.action.setBadgeText({ text: '' });
     }
   } catch (error) {
     console.error('Error updating badge:', error);

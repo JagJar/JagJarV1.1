@@ -10,8 +10,11 @@ let isJagJarEnabledSite = false;
 let limitReached = false;
 let limitOverlay = null;
 
+// Using browser namespace for cross-browser compatibility
+const browser = chrome;
+
 // Check if this site is JagJar-enabled
-chrome.runtime.sendMessage({type: 'check-jagjar-enabled'}, response => {
+browser.runtime.sendMessage({type: 'check-jagjar-enabled'}, response => {
   if (response && response.isEnabled) {
     isJagJarEnabledSite = true;
     initializeActivityTracking();
@@ -39,13 +42,13 @@ function reportActivity() {
   // Throttle activity updates to avoid excessive messaging
   if (now - lastActivityUpdate > ACTIVITY_UPDATE_THROTTLE_MS) {
     lastActivityUpdate = now;
-    chrome.runtime.sendMessage({ type: 'user-activity' });
+    browser.runtime.sendMessage({ type: 'user-activity' });
   }
 }
 
 // Check if user has reached usage limits
 function checkUserLimits() {
-  chrome.runtime.sendMessage({ type: 'get-user-data' }, response => {
+  browser.runtime.sendMessage({ type: 'get-user-data' }, response => {
     const userData = response.user;
     
     if (!userData || (userData.subscriptionType === 'free' && userData.remainingTimeSeconds <= 0)) {
@@ -84,7 +87,7 @@ function showLimitOverlay() {
   // Add content to the overlay
   limitOverlay.innerHTML = `
     <div style="max-width: 500px;">
-      <img src="${chrome.runtime.getURL('icons/icon128.png')}" alt="JagJar" style="width: 80px; height: 80px; margin-bottom: 20px;">
+      <img src="${browser.runtime.getURL('icons/icon128.png')}" alt="JagJar" style="width: 80px; height: 80px; margin-bottom: 20px;">
       <h1 style="font-size: 24px; margin-bottom: 10px;">Free Tier Limit Reached</h1>
       <p style="font-size: 16px; margin-bottom: 20px;">You've reached your monthly free tier limit for JagJar-enabled websites.</p>
       <p style="font-size: 16px; margin-bottom: 30px;">Upgrade to premium for unlimited access to all JagJar-enabled sites.</p>
@@ -113,7 +116,7 @@ function showLimitOverlay() {
 }
 
 // Listen for messages from the background script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'limit-reached') {
     limitReached = true;
     showLimitOverlay();

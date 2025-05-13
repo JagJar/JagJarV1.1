@@ -46,12 +46,15 @@ function showView(viewName) {
 }
 
 // Initialize the popup
+// Using browser namespace for cross-browser compatibility
+const browser = chrome;
+
 async function initializePopup() {
   showView('loading');
   
   try {
     // Get the active tab
-    const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+    const tabs = await browser.tabs.query({ active: true, currentWindow: true });
     const activeTab = tabs[0];
     currentTabUrl = activeTab.url;
     
@@ -91,7 +94,7 @@ async function initializePopup() {
 // Check if the user is logged in
 async function checkAuthStatus() {
   try {
-    const data = await chrome.storage.local.get('user');
+    const data = await browser.storage.local.get('user');
     if (data.user) {
       user = data.user;
       
