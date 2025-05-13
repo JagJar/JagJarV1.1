@@ -18,7 +18,9 @@ self.addEventListener('activate', (event) => {
 });
 
 // For backward compatibility, still listen to onInstalled
-chrome.runtime.onInstalled.addListener(() => {
+// Using browser for cross-browser compatibility
+const browser = chrome;
+browser.runtime.onInstalled.addListener(() => {
   console.log('JagJar extension installed');
   initializeExtension();
 });
@@ -28,7 +30,7 @@ initializeExtension();
 
 function initializeExtension() {
   // Set up periodic sync
-  chrome.alarms.create('sync-time-data', {
+  browser.alarms.create('sync-time-data', {
     periodInMinutes: SYNC_INTERVAL_MINUTES
   });
   
@@ -37,18 +39,18 @@ function initializeExtension() {
 }
 
 // Set up listeners
-chrome.tabs.onActivated.addListener(activeInfo => {
+browser.tabs.onActivated.addListener(activeInfo => {
   handleTabActivated(activeInfo.tabId);
 });
 
-chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === 'complete' && tabId === activeTabId) {
     handleTabUpdated(tab);
   }
 });
 
 // When the user navigates away from a site or closes a tab, record the time
-chrome.tabs.onRemoved.addListener(tabId => {
+browser.tabs.onRemoved.addListener(tabId => {
   if (tabId === activeTabId) {
     recordTimeSpent();
     activeTabId = null;
@@ -58,14 +60,14 @@ chrome.tabs.onRemoved.addListener(tabId => {
 });
 
 // Sync data to the server periodically
-chrome.alarms.onAlarm.addListener(alarm => {
+browser.alarms.onAlarm.addListener(alarm => {
   if (alarm.name === 'sync-time-data') {
     syncTimeData();
   }
 });
 
 // Handle messages from content script
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === 'user-activity') {
     lastActivityTime = Date.now();
   } else if (message.type === 'check-jagjar-enabled') {
@@ -92,7 +94,7 @@ async function handleTabActivated(tabId) {
   lastActivityTime = Date.now();
   
   try {
-    const tab = await chrome.tabs.get(tabId);
+    const tab = await browser.tabs.get(tabId);
     activeTabUrl = tab.url;
     const domain = new URL(activeTabUrl).hostname;
     
@@ -231,7 +233,7 @@ async function checkIfJagJarEnabled(domain) {
 
 async function checkAuthStatus() {
   try {
-    const data = await chrome.storage.local.get('user');
+    const data = await browser.storage.local.get('user');
     if (data.user) {
       user = data.user;
       
@@ -246,7 +248,7 @@ async function checkAuthStatus() {
       if (!response.ok) {
         // Token is invalid, clear user data
         user = null;
-        await chrome.storage.local.remove('user');
+        await browser.storage.local.remove('user');
       }
     }
   } catch (error) {
