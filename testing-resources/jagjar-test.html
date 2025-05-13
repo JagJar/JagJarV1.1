@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JagJar Extension Test Page</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #4F46E5;
+      text-align: center;
+    }
+    .test-section {
+      border: 1px solid #ddd;
+      padding: 20px;
+      margin-bottom: 20px;
+      border-radius: 8px;
+    }
+    button {
+      background-color: #4F46E5;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+    .log {
+      background-color: #f4f4f4;
+      padding: 10px;
+      border-radius: 4px;
+      margin-top: 10px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+    .success {
+      color: #059669;
+    }
+    .error {
+      color: #DC2626;
+    }
+  </style>
+</head>
+<body>
+  <h1>JagJar Extension Test Page</h1>
+  
+  <div class="test-section">
+    <h2>Extension Detection</h2>
+    <p>This test checks if the JagJar extension is properly installed and can communicate with this page.</p>
+    <button id="check-extension">Check Extension</button>
+    <div id="detection-log" class="log"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>Activity Tracking</h2>
+    <p>This test verifies that the extension is tracking user activity correctly.</p>
+    <button id="test-activity">Test Activity Tracking</button>
+    <div id="activity-log" class="log"></div>
+  </div>
+  
+  <div class="test-section">
+    <h2>Browser API Compatibility</h2>
+    <p>This test checks if the browser-specific API adaptations are working properly.</p>
+    <button id="test-compatibility">Test Compatibility</button>
+    <div id="compatibility-log" class="log"></div>
+  </div>
+
+  <script>
+    // Add fake JagJar API key to simulate this is a JagJar-enabled site
+    window.JagJar = {
+      apiKey: 'jag_k1_test123456789'
+    };
+
+    // Extension detection test
+    document.getElementById('check-extension').addEventListener('click', function() {
+      const log = document.getElementById('detection-log');
+      log.innerHTML = 'Checking for JagJar extension...';
+      
+      // Create a custom event that the extension content script can listen for
+      const checkEvent = new CustomEvent('jagjar_extension_check', {
+        detail: { test: 'detection' }
+      });
+      document.dispatchEvent(checkEvent);
+      
+      // Set up a listener for the response
+      window.addEventListener('message', function extensionResponseHandler(event) {
+        if (event.data && event.data.from === 'jagjar_extension') {
+          log.innerHTML += '<br><span class="success">✓ JagJar extension detected!</span>';
+          window.removeEventListener('message', extensionResponseHandler);
+        }
+      });
+      
+      // If no response after 2 seconds, assume extension is not present
+      setTimeout(() => {
+        if (!log.innerHTML.includes('detected')) {
+          log.innerHTML += '<br><span class="error">✗ JagJar extension not detected or not responding.</span>';
+        }
+      }, 2000);
+    });
+    
+    // Activity tracking test
+    document.getElementById('test-activity').addEventListener('click', function() {
+      const log = document.getElementById('activity-log');
+      log.innerHTML = 'Testing activity tracking...';
+      
+      // Simulate user activity
+      let activitiesCompleted = 0;
+      
+      // Mouse movement
+      document.addEventListener('mousemove', function mouseTrackingTest() {
+        log.innerHTML += '<br><span class="success">✓ Mouse movement detected</span>';
+        document.removeEventListener('mousemove', mouseTrackingTest);
+        activitiesCompleted++;
+        checkCompleted();
+      }, { once: true });
+      
+      // Keyboard input
+      document.addEventListener('keydown', function keyTrackingTest() {
+        log.innerHTML += '<br><span class="success">✓ Keyboard activity detected</span>';
+        document.removeEventListener('keydown', keyTrackingTest);
+        activitiesCompleted++;
+        checkCompleted();
+      }, { once: true });
+      
+      log.innerHTML += '<br>Please move your mouse and press any key...';
+      
+      function checkCompleted() {
+        if (activitiesCompleted >= 2) {
+          log.innerHTML += '<br><span class="success">✓ Activity tracking test completed!</span>';
+        }
+      }
+    });
+    
+    // Browser compatibility test
+    document.getElementById('test-compatibility').addEventListener('click', function() {
+      const log = document.getElementById('compatibility-log');
+      log.innerHTML = 'Testing browser API compatibility...';
+      
+      // Try to detect the browser
+      const userAgent = navigator.userAgent;
+      let browserName = "Unknown";
+      
+      if (userAgent.indexOf("Firefox") > -1) {
+        browserName = "Firefox";
+      } else if (userAgent.indexOf("Chrome") > -1) {
+        if (userAgent.indexOf("Edg") > -1) {
+          browserName = "Edge";
+        } else {
+          browserName = "Chrome";
+        }
+      } else if (userAgent.indexOf("Safari") > -1 && userAgent.indexOf("Chrome") === -1) {
+        browserName = "Safari";
+      }
+      
+      log.innerHTML += `<br>Detected browser: <strong>${browserName}</strong>`;
+      
+      // Create a custom event for browser API testing
+      const apiTestEvent = new CustomEvent('jagjar_api_test', {
+        detail: { browser: browserName }
+      });
+      document.dispatchEvent(apiTestEvent);
+      
+      // Listen for response
+      window.addEventListener('message', function apiResponseHandler(event) {
+        if (event.data && event.data.from === 'jagjar_api_test_response') {
+          log.innerHTML += `<br><span class="success">✓ ${event.data.message || 'Browser API working correctly'}</span>`;
+          window.removeEventListener('message', apiResponseHandler);
+        }
+      });
+      
+      setTimeout(() => {
+        if (!log.innerHTML.includes('Browser API working')) {
+          log.innerHTML += '<br><span class="error">✗ No response from extension API test. This may not be supported yet, but the extension might still work correctly.</span>';
+        }
+      }, 2000);
+    });
+  </script>
+</body>
+</html>

@@ -19,6 +19,10 @@ cp -r extensions/edge /tmp/jagjar-extensions/
 echo "Packaging Safari extension..."
 cp -r extensions/safari /tmp/jagjar-extensions/
 
+# Copy testing resources
+echo "Adding testing resources..."
+cp -r testing-resources /tmp/jagjar-extensions/
+
 # Create a tar.gz file
 echo "Creating tar.gz archive..."
 cd /tmp
