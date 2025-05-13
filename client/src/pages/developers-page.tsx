@@ -439,7 +439,7 @@ export class AppModule { }`)}
                   <strong>Total premium subscription revenue for the month:</strong> $10,000
                 </p>
                 <p className="text-sm text-neutral-700">
-                  <strong>Developer revenue pool (70%):</strong> $7,000
+                  <strong>Developer revenue pool (60%):</strong> $6,000
                 </p>
                 <p className="text-sm text-neutral-700">
                   <strong>Total premium user hours across all applications:</strong> 50,000 hours
@@ -448,7 +448,7 @@ export class AppModule { }`)}
                   <strong>Your application's premium user hours:</strong> 5,000 hours (10% of total)
                 </p>
                 <p className="text-sm text-neutral-700">
-                  <strong>Your revenue share:</strong> $700 (10% of $7,000)
+                  <strong>Your revenue share:</strong> $600 (10% of $6,000)
                 </p>
               </div>
             </div>
