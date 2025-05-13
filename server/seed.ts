@@ -261,7 +261,7 @@ async function seedDatabase() {
       {
         name: "Free",
         price: 0,
-        timeLimit: 3600 * 10, // 10 hours per month
+        timeLimit: 3600 * 8, // 8 hours per month
         description: "Basic access to JagJar enabled sites with time limits"
       },
       {

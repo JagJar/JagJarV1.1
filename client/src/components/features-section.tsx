@@ -65,7 +65,7 @@ export default function FeaturesSection() {
                 </li>
                 <li className="flex items-start">
                   <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />
-                  <span>Free tier with 10 hour monthly limit</span>
+                  <span>Free tier with 8 hour monthly limit</span>
                 </li>
                 <li className="flex items-start">
                   <Check className="h-5 w-5 text-green-500 mt-0.5 mr-2 flex-shrink-0" />

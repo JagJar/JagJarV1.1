@@ -23,7 +23,7 @@ export function PricingSection() {
               <ul className="space-y-3 mb-8">
                 <li className="flex items-start">
                   <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
-                  <span>10 hours/month on JagJar sites</span>
+                  <span>8 hours/month on JagJar sites</span>
                 </li>
                 <li className="flex items-start">
                   <Check className="h-5 w-5 text-green-500 mt-0.5 mr-3 flex-shrink-0" />
