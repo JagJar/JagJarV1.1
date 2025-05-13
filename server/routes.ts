@@ -7,8 +7,10 @@ import { z } from "zod";
 import { 
   insertApiKeySchema, 
   insertWebsiteSchema, 
-  insertTimeTrackingSchema 
+  insertTimeTrackingSchema,
+  websites
 } from "@shared/schema";
+import { db } from "./db";
 import * as revenueController from "./controllers/revenueController";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -622,6 +624,179 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.put("/api/admin/revenue/settings", revenueController.updateRevenueSettings);
   app.get("/api/admin/revenue/stats", revenueController.getPlatformRevenueStats);
   app.get("/api/admin/revenue/top-developers/:month", revenueController.getTopEarningDevelopers);
+
+  // Browser extension endpoints
+  app.get("/api/check-site", async (req, res) => {
+    const domain = req.query.domain as string;
+    
+    if (!domain) {
+      return res.status(400).json({ error: "Domain parameter is required" });
+    }
+    
+    try {
+      // Check if any website in our database matches this domain
+      // For now, we'll do a simple implementation
+      const allWebsites = await db.select().from(websites);
+      
+      // Check if any website URL contains this domain
+      const matchingWebsite = allWebsites.find(site => {
+        try {
+          const siteUrl = new URL(site.url);
+          const siteDomain = siteUrl.hostname;
+          return siteDomain === domain || domain.includes(siteDomain) || siteDomain.includes(domain);
+        } catch {
+          return false;
+        }
+      });
+      
+      res.json({ enabled: !!matchingWebsite });
+    } catch (error) {
+      console.error("Error checking site:", error);
+      res.json({ enabled: false });
+    }
+  });
+  
+  app.get("/api/time-tracking/user", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    
+    try {
+      const userId = req.user?.id;
+      
+      // Get time tracking data for this user
+      const timeTrackingData = await storage.getTimeTrackingByUserId(userId!);
+      
+      // Calculate total time today
+      const today = new Date().toISOString().split('T')[0];
+      const todaySeconds = timeTrackingData
+        .filter(record => record.date.toISOString().startsWith(today))
+        .reduce((total, record) => total + record.duration, 0);
+      
+      // Calculate total time this month
+      const thisMonth = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
+      const monthSeconds = timeTrackingData
+        .filter(record => record.date.toISOString().startsWith(thisMonth))
+        .reduce((total, record) => total + record.duration, 0);
+      
+      // Get the user subscription type
+      const subscriptionType = req.user?.subscriptionType || 'free';
+      const isSubscribed = req.user?.isSubscribed || false;
+      
+      // Get the time limit for free users (in seconds)
+      const timeLimit = 8 * 3600; // 8 hours in seconds
+      
+      // Calculate remaining time for free users
+      const remainingSeconds = isSubscribed || subscriptionType === 'premium' 
+        ? null // No limit for premium users
+        : Math.max(0, timeLimit - monthSeconds);
+      
+      res.json({
+        today: todaySeconds,
+        month: monthSeconds,
+        subscriptionType,
+        isSubscribed,
+        remainingSeconds,
+        timeLimit: isSubscribed || subscriptionType === 'premium' ? null : timeLimit
+      });
+    } catch (error) {
+      console.error("Error getting user time tracking data:", error);
+      res.status(500).json({ error: "Failed to retrieve time tracking data" });
+    }
+  });
+  
+  app.post("/api/time-tracking", async (req, res) => {
+    if (!req.isAuthenticated()) return res.status(401).json({ error: "Unauthorized" });
+    
+    try {
+      const userId = req.user?.id;
+      const { timeData } = req.body;
+      
+      if (!Array.isArray(timeData) || timeData.length === 0) {
+        return res.status(400).json({ error: "Invalid time data format" });
+      }
+      
+      // Process each time record
+      for (const record of timeData) {
+        const { domain, seconds, timestamp } = record;
+        
+        // Skip invalid records
+        if (!domain || !seconds || seconds <= 0 || !timestamp) continue;
+        
+        // Find website by domain
+        let websiteId;
+        const allWebsites = await db.select().from(websites);
+        
+        const matchingWebsite = allWebsites.find(site => {
+          try {
+            const siteUrl = new URL(site.url);
+            const siteDomain = siteUrl.hostname;
+            return siteDomain === domain || domain.includes(siteDomain) || siteDomain.includes(domain);
+          } catch {
+            return false;
+          }
+        });
+        
+        if (matchingWebsite) {
+          websiteId = matchingWebsite.id;
+        } else {
+          // Skip if no matching website
+          continue;
+        }
+        
+        // Create time tracking record
+        await storage.createTimeTracking({
+          userId: userId!,
+          websiteId,
+          duration: seconds,
+          date: new Date(timestamp),
+          path: '/' // Default path
+        });
+      }
+      
+      // Check if the user has hit their free tier limit
+      const subscriptionType = req.user?.subscriptionType || 'free';
+      const isSubscribed = req.user?.isSubscribed || false;
+      
+      // Only check limits for free users
+      if (!isSubscribed && subscriptionType !== 'premium') {
+        // Get all time tracking for this month
+        const thisMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
+        const timeTrackingData = await storage.getTimeTrackingByUserId(userId!);
+        const monthSeconds = timeTrackingData
+          .filter(record => record.date.toISOString().startsWith(thisMonth))
+          .reduce((total, record) => total + record.duration, 0);
+        
+        // Free tier limit is 8 hours (28800 seconds)
+        const freeLimit = 8 * 3600;
+        
+        if (monthSeconds >= freeLimit) {
+          // User has hit their limit
+          return res.json({
+            status: 'limited',
+            limitInfo: {
+              limit: 8,
+              used: Math.ceil(monthSeconds / 3600),
+              remaining: 0
+            }
+          });
+        }
+      }
+      
+      // Return success
+      res.json({ status: 'success' });
+    } catch (error) {
+      console.error("Error processing time tracking data:", error);
+      res.status(500).json({ error: "Failed to process time tracking data" });
+    }
+  });
+  
+  app.get("/api/validate-token", (req, res) => {
+    // This endpoint simply checks if the user is authenticated
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ error: "Invalid token" });
+    }
+    
+    res.json({ valid: true });
+  });
 
   const httpServer = createServer(app);
   return httpServer;

@@ -83,6 +83,9 @@ export const insertTimeTrackingSchema = createInsertSchema(timeTracking).pick({
   userId: true,
   websiteId: true,
   duration: true,
+  date: true,
+  path: true,
+  isPremium: true,
 });
 
 // Revenue model

@@ -1,210 +1,282 @@
 // Configuration
-const API_BASE_URL = 'https://jagjar.app/api'; // Will need to be updated to the actual domain
+const API_BASE_URL = 'https://jagjar.app/api'; // Update to the actual domain
 const SYNC_INTERVAL_MINUTES = 5;
-const INACTIVITY_THRESHOLD_SECONDS = 60; // Consider user inactive after 1 minute without interaction
+const INACTIVITY_THRESHOLD_SECONDS = 60;
 
 // State
-let user = null;
 let activeTabId = null;
 let activeTabUrl = null;
-let activeTabStartTime = null;
-let lastActivityTime = null;
-let cumulativeTimeSpent = {}; // { domain: timeInSeconds }
-let isJagJarEnabledSite = {}; // { domain: boolean }
+let activeTabDomain = null;
+let lastActiveTime = Date.now();
+let isJagJarEnabledSite = false;
+let timeByDomain = {};
+let syncTimeoutId = null;
 
 // Initialize
-browser.runtime.onInstalled.addListener(() => {
-  console.log('JagJar extension installed');
-  
-  // Set up periodic sync
-  browser.alarms.create('sync-time-data', {
-    periodInMinutes: SYNC_INTERVAL_MINUTES
-  });
-  
-  // Check user auth status
-  checkAuthStatus();
-});
-
-// Set up listeners
-browser.tabs.onActivated.addListener(activeInfo => {
-  handleTabActivated(activeInfo.tabId);
+browser.tabs.onActivated.addListener(info => {
+  handleTabActivated(info.tabId);
 });
 
 browser.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-  if (changeInfo.status === 'complete' && tabId === activeTabId) {
+  if (tabId === activeTabId && changeInfo.url) {
     handleTabUpdated(tab);
   }
 });
 
-// When the user navigates away from a site or closes a tab, record the time
-browser.tabs.onRemoved.addListener(tabId => {
-  if (tabId === activeTabId) {
-    recordTimeSpent();
-    activeTabId = null;
-    activeTabUrl = null;
-    activeTabStartTime = null;
-  }
-});
+// Start time tracking interval
+setInterval(recordTimeSpent, 1000);
 
-// Sync data to the server periodically
-browser.alarms.onAlarm.addListener(alarm => {
-  if (alarm.name === 'sync-time-data') {
-    syncTimeData();
-  }
-});
+// Schedule periodic syncing
+scheduleSyncTimeData();
 
-// Handle messages from content script
-browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === 'user-activity') {
-    lastActivityTime = Date.now();
-    return Promise.resolve();
-  } else if (message.type === 'check-jagjar-enabled') {
-    const domain = new URL(sender.tab.url).hostname;
-    return checkIfJagJarEnabled(domain)
-      .then(enabled => {
-        isJagJarEnabledSite[domain] = enabled;
-        return { isEnabled: enabled };
-      });
-  } else if (message.type === 'get-user-data') {
-    return Promise.resolve({ user: user });
-  }
-});
-
-// Functions
+// Tab activation handler
 async function handleTabActivated(tabId) {
-  // Record time spent on the previous active tab
-  recordTimeSpent();
-  
-  // Update active tab info
-  activeTabId = tabId;
-  activeTabStartTime = Date.now();
-  lastActivityTime = Date.now();
-  
   try {
     const tab = await browser.tabs.get(tabId);
+    
+    if (!tab.url || tab.url.startsWith('about:') || tab.url.startsWith('moz-extension:')) {
+      // Not a tracking tab, clear active tab
+      activeTabId = null;
+      activeTabUrl = null;
+      activeTabDomain = null;
+      isJagJarEnabledSite = false;
+      return;
+    }
+    
+    // Update active tab info
+    activeTabId = tabId;
     activeTabUrl = tab.url;
-    const domain = new URL(activeTabUrl).hostname;
     
-    // Check if this is a JagJar-enabled site
-    if (isJagJarEnabledSite[domain] === undefined) {
-      isJagJarEnabledSite[domain] = await checkIfJagJarEnabled(domain);
+    try {
+      const url = new URL(tab.url);
+      activeTabDomain = url.hostname;
+      
+      // Check if this is a JagJar-enabled site
+      isJagJarEnabledSite = await checkIfJagJarEnabled(activeTabDomain);
+      
+      // Update the badge
+      updateBadge();
+      
+      // Reset last active time
+      lastActiveTime = Date.now();
+    } catch (error) {
+      console.error('Error parsing URL:', error);
+      activeTabDomain = null;
+      isJagJarEnabledSite = false;
     }
   } catch (error) {
-    console.error('Error getting tab details:', error);
+    console.error('Error handling tab activation:', error);
   }
 }
 
+// Tab update handler
 function handleTabUpdated(tab) {
-  recordTimeSpent();
+  if (!tab.url || tab.url.startsWith('about:') || tab.url.startsWith('moz-extension:')) {
+    // Not a tracking tab, clear active tab
+    activeTabId = null;
+    activeTabUrl = null;
+    activeTabDomain = null;
+    isJagJarEnabledSite = false;
+    return;
+  }
   
+  // Update active tab info
   activeTabUrl = tab.url;
-  activeTabStartTime = Date.now();
-  lastActivityTime = Date.now();
-}
-
-function recordTimeSpent() {
-  if (!activeTabId || !activeTabUrl || !activeTabStartTime) return;
   
   try {
-    const domain = new URL(activeTabUrl).hostname;
+    const url = new URL(tab.url);
+    const newDomain = url.hostname;
     
-    // Only track time for JagJar-enabled sites
-    if (!isJagJarEnabledSite[domain]) return;
-    
-    // Calculate active time (excluding inactive periods)
-    const now = Date.now();
-    const inactiveTimeThreshold = lastActivityTime + (INACTIVITY_THRESHOLD_SECONDS * 1000);
-    
-    let activeTime;
-    if (now > inactiveTimeThreshold) {
-      // User has been inactive
-      activeTime = (lastActivityTime - activeTabStartTime) / 1000;
-    } else {
-      // User is still active
-      activeTime = (now - activeTabStartTime) / 1000;
+    // If domain changed, check if it's JagJar-enabled
+    if (newDomain !== activeTabDomain) {
+      activeTabDomain = newDomain;
+      checkIfJagJarEnabled(activeTabDomain).then(enabled => {
+        isJagJarEnabledSite = enabled;
+        updateBadge();
+      });
     }
     
-    // Round down to nearest second
-    activeTime = Math.floor(activeTime);
-    
-    // Add to cumulative time
-    if (!cumulativeTimeSpent[domain]) {
-      cumulativeTimeSpent[domain] = 0;
-    }
-    cumulativeTimeSpent[domain] += activeTime;
-    
-    console.log(`Recorded ${activeTime}s on ${domain}. Total: ${cumulativeTimeSpent[domain]}s`);
-    
-    // Reset the start time
-    activeTabStartTime = now;
+    // Reset last active time
+    lastActiveTime = Date.now();
   } catch (error) {
-    console.error('Error recording time spent:', error);
+    console.error('Error parsing URL:', error);
+    activeTabDomain = null;
+    isJagJarEnabledSite = false;
   }
 }
 
-async function syncTimeData() {
-  if (!user) {
-    console.log('User not logged in, skipping time sync');
+// Record time spent on the active tab
+function recordTimeSpent() {
+  // Only record time for JagJar-enabled sites
+  if (!isJagJarEnabledSite || !activeTabDomain) {
     return;
   }
   
-  // Record time for the currently active tab before syncing
-  recordTimeSpent();
+  // Check if user is still active
+  const now = Date.now();
+  const secondsSinceLastActivity = (now - lastActiveTime) / 1000;
   
-  // Only sync if there's data to sync
-  if (Object.keys(cumulativeTimeSpent).length === 0) {
-    console.log('No time data to sync');
+  if (secondsSinceLastActivity > INACTIVITY_THRESHOLD_SECONDS) {
+    // User is inactive, don't record time
+    return;
+  }
+  
+  // Initialize domain counter if needed
+  if (!timeByDomain[activeTabDomain]) {
+    timeByDomain[activeTabDomain] = {
+      seconds: 0,
+      lastUpdated: now
+    };
+  }
+  
+  // Add 1 second to the counter
+  timeByDomain[activeTabDomain].seconds += 1;
+  timeByDomain[activeTabDomain].lastUpdated = now;
+  
+  // Check if we should sync data
+  if (Object.keys(timeByDomain).some(domain => timeByDomain[domain].seconds >= 60)) {
+    syncTimeData();
+  }
+  
+  // Check user limits if on a JagJar-enabled site
+  checkAuthStatus().then(isLoggedIn => {
+    if (isLoggedIn) {
+      // Get user data from storage
+      browser.storage.local.get('user').then(data => {
+        if (data.user && data.user.subscriptionType === 'free') {
+          // Get all time tracking for this month
+          fetch(`${API_BASE_URL}/time-tracking/user`, {
+            method: 'GET',
+            headers: {
+              'Authorization': `Bearer ${data.user.token}`
+            }
+          }).then(response => response.json())
+            .then(timeData => {
+              if (timeData.remainingSeconds !== null && timeData.remainingSeconds <= 0) {
+                // User has hit their limit, show notification and overlay
+                showLimitNotification({
+                  limit: 8,
+                  used: Math.ceil(timeData.month / 3600)
+                });
+                
+                // Notify content script
+                browser.tabs.sendMessage(activeTabId, { type: 'limit-reached' })
+                  .catch(error => {
+                    console.error('Error sending limit-reached message:', error);
+                  });
+              }
+            })
+            .catch(error => {
+              console.error('Error checking time limits:', error);
+            });
+        }
+      });
+    }
+  });
+}
+
+// Sync time data with the server
+async function syncTimeData() {
+  // Check if we have data to sync
+  if (Object.keys(timeByDomain).length === 0) {
+    return;
+  }
+  
+  // Check if user is logged in
+  const isLoggedIn = await checkAuthStatus();
+  
+  if (!isLoggedIn) {
+    // User not logged in, wait until they login
     return;
   }
   
   try {
-    // Format data for the API
-    const timeData = Object.entries(cumulativeTimeSpent).map(([domain, seconds]) => ({
-      domain,
-      seconds,
-      timestamp: new Date().toISOString()
-    }));
+    // Get the data to sync
+    const dataToSync = [];
+    const now = Date.now();
     
-    // Send to the API
+    for (const domain in timeByDomain) {
+      // Only sync domains with activity
+      if (timeByDomain[domain].seconds > 0) {
+        dataToSync.push({
+          domain,
+          seconds: timeByDomain[domain].seconds,
+          timestamp: now
+        });
+        
+        // Reset counter
+        timeByDomain[domain].seconds = 0;
+      }
+    }
+    
+    if (dataToSync.length === 0) {
+      return;
+    }
+    
+    // Get the auth token
+    const data = await browser.storage.local.get('user');
+    
+    if (!data.user || !data.user.token) {
+      return;
+    }
+    
+    // Send data to the server
     const response = await fetch(`${API_BASE_URL}/time-tracking`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${user.token}`
+        'Authorization': `Bearer ${data.user.token}`
       },
-      body: JSON.stringify({ timeData })
+      body: JSON.stringify({
+        timeData: dataToSync
+      })
     });
     
-    if (response.ok) {
-      console.log('Time data synced successfully');
+    if (!response.ok) {
+      throw new Error(`Server returned ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    // Check if user has hit their limit
+    if (result.status === 'limited') {
+      showLimitNotification(result.limitInfo);
       
-      // Check for any usage limitations from the server
-      const data = await response.json();
-      if (data.status === 'limited') {
-        // User has hit their free tier limit
-        showLimitNotification(data.limitInfo);
+      // Notify content script if on an active JagJar site
+      if (isJagJarEnabledSite && activeTabId) {
+        browser.tabs.sendMessage(activeTabId, { type: 'limit-reached' })
+          .catch(error => {
+            console.error('Error sending limit-reached message:', error);
+          });
       }
-      
-      // Reset the cumulative time as it's been synced
-      cumulativeTimeSpent = {};
-    } else {
-      console.error('Error syncing time data:', response.statusText);
     }
   } catch (error) {
-    console.error('Error during time data sync:', error);
+    console.error('Error syncing time data:', error);
   }
 }
 
-async function checkIfJagJarEnabled(domain) {
-  try {
-    // In a real implementation, this would check with the JagJar API
-    // For now, let's simulate a check
-    const response = await fetch(`${API_BASE_URL}/check-site?domain=${encodeURIComponent(domain)}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json'
-      }
+// Schedule periodic syncing
+function scheduleSyncTimeData() {
+  // Clear existing timeout if any
+  if (syncTimeoutId) {
+    clearTimeout(syncTimeoutId);
+  }
+  
+  // Schedule sync every SYNC_INTERVAL_MINUTES
+  syncTimeoutId = setTimeout(() => {
+    syncTimeData().then(() => {
+      // Schedule next sync
+      scheduleSyncTimeData();
     });
+  }, SYNC_INTERVAL_MINUTES * 60 * 1000);
+}
+
+// Check if a site is JagJar-enabled
+async function checkIfJagJarEnabled(domain) {
+  if (!domain) return false;
+  
+  try {
+    const response = await fetch(`${API_BASE_URL}/check-site?domain=${encodeURIComponent(domain)}`);
     
     if (response.ok) {
       const data = await response.json();
@@ -214,66 +286,91 @@ async function checkIfJagJarEnabled(domain) {
     console.error('Error checking if site is JagJar enabled:', error);
   }
   
-  // Default to false if there's an error
   return false;
 }
 
+// Check if user is authenticated
 async function checkAuthStatus() {
   try {
     const data = await browser.storage.local.get('user');
-    if (data.user) {
-      user = data.user;
-      
-      // Verify the token is still valid
-      const response = await fetch(`${API_BASE_URL}/validate-token`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${user.token}`
-        }
-      });
-      
-      if (!response.ok) {
-        // Token is invalid, clear user data
-        user = null;
-        await browser.storage.local.remove('user');
-      }
+    
+    if (!data.user || !data.user.token) {
+      return false;
     }
+    
+    // Validate token
+    const response = await fetch(`${API_BASE_URL}/validate-token`, {
+      method: 'GET',
+      headers: {
+        'Authorization': `Bearer ${data.user.token}`
+      }
+    });
+    
+    if (!response.ok) {
+      // Token is invalid, clear user data
+      await browser.storage.local.remove('user');
+      return false;
+    }
+    
+    return true;
   } catch (error) {
     console.error('Error checking auth status:', error);
+    return false;
   }
 }
 
+// Show a notification when user reaches free tier limit
 function showLimitNotification(limitInfo) {
   browser.notifications.create({
     type: 'basic',
-    iconUrl: 'icons/icon128.png',
-    title: 'JagJar Usage Limit Reached',
-    message: `You've reached your ${limitInfo.limit} hour free tier limit for this month. Upgrade to premium for unlimited access.`,
-    buttons: [
-      { title: 'Upgrade Now' }
-    ]
+    iconUrl: browser.runtime.getURL('icons/icon128.png'),
+    title: 'JagJar Free Tier Limit Reached',
+    message: `You've used ${limitInfo.used} hours of your ${limitInfo.limit} hour limit. Upgrade to premium for unlimited access.`
   });
 }
 
-// Badge and icon management
+// Update the browser action badge
 function updateBadge() {
-  if (!activeTabUrl) return;
-  
-  try {
-    const domain = new URL(activeTabUrl).hostname;
-    if (isJagJarEnabledSite[domain]) {
-      // Show time spent on this site today
-      const minutes = Math.floor((cumulativeTimeSpent[domain] || 0) / 60);
-      browser.browserAction.setBadgeText({ text: minutes.toString() });
-      browser.browserAction.setBadgeBackgroundColor({ color: '#4F46E5' });
-    } else {
-      // Not a JagJar site
-      browser.browserAction.setBadgeText({ text: '' });
-    }
-  } catch (error) {
-    console.error('Error updating badge:', error);
+  if (isJagJarEnabledSite) {
+    browser.browserAction.setBadgeText({ text: '✓' });
+    browser.browserAction.setBadgeBackgroundColor({ color: '#059669' }); // Green
+    browser.browserAction.setTitle({ title: 'JagJar: This site is enabled' });
+  } else {
+    browser.browserAction.setBadgeText({ text: '' });
+    browser.browserAction.setTitle({ title: 'JagJar: Time Tracker' });
   }
 }
 
-// Update the badge every minute
-setInterval(updateBadge, 60 * 1000);
+// Handle messages from content scripts
+browser.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === 'user-activity') {
+    lastActiveTime = Date.now();
+  } else if (message.type === 'check-jagjar-enabled') {
+    if (sender.tab && sender.tab.url) {
+      try {
+        const url = new URL(sender.tab.url);
+        const domain = url.hostname;
+        
+        // Check if this domain is JagJar-enabled
+        checkIfJagJarEnabled(domain).then(enabled => {
+          sendResponse({ isEnabled: enabled });
+        });
+        
+        // Indicate we'll respond asynchronously
+        return true;
+      } catch (error) {
+        console.error('Error parsing URL from content script:', error);
+      }
+    }
+    
+    // Default response
+    sendResponse({ isEnabled: false });
+  } else if (message.type === 'get-user-data') {
+    browser.storage.local.get('user').then(data => {
+      sendResponse({ user: data.user || null });
+    });
+    
+    // Indicate we'll respond asynchronously
+    return true;
+  }
+});
