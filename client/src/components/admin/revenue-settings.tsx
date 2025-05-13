@@ -99,7 +99,7 @@ export default function RevenueSettings() {
     developerShare: 70,
     minimumPayoutAmount: 1000,
     payoutSchedule: "monthly",
-    premiumSubscriptionPrice: 1999,
+    premiumSubscriptionPrice: 2500,
     highPerformanceBonusThreshold: 120,
     highPerformanceBonusMultiplier: 1.5,
   };

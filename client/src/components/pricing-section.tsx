@@ -64,7 +64,7 @@ export function PricingSection() {
               <p className="text-neutral-600 mb-6">For frequent web app users</p>
               
               <div className="mb-6">
-                <span className="text-4xl font-bold text-neutral-800">$19.99</span>
+                <span className="text-4xl font-bold text-neutral-800">$25</span>
                 <span className="text-neutral-500">/month</span>
               </div>
               
